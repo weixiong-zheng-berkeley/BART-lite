@@ -1,4 +1,3 @@
-import mesh
 problem = {
   "mesh_cells": 10,
   "groups": 1,
