@@ -1,3 +1,4 @@
+from __future__ import division
 from input import problem
 from collections import namedtuple
 from itertools import product
