@@ -1,4 +1,6 @@
-def fempoi2D(h, domain_length):
+import numpy as np
+
+def fempoi2d(h, domain_length):
     """Solves 2D Poisson's equation for elements of size h 
     and bilinear basis equations"""
     # Define Global Matrices
