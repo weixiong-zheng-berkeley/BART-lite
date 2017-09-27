@@ -1,4 +1,6 @@
 import numpy as np
+import scipy.sparse as sps 
+from scipy.sparse.linalg import spsolve
 
 def fempoi2d(h, domain_length, t):
     """Solves 2D Poisson's equation for elements of size h 
@@ -8,8 +10,8 @@ def fempoi2d(h, domain_length, t):
     nodes_x = int(n_x + 1) # number of node points in each direction
     nodes = int(nodes_x**2) # number of total node points
     n = int(n_x**2) # number of mesh cells
-    A = np.zeros((nodes, nodes))
-    b = np.zeros(nodes)
+    A = sps.lil_matrix((nodes, nodes))
+    b = sps.lil_matrix((nodes, 1))
 
     # Find Local Basis Functions
     for cell in range(n):
@@ -63,7 +65,7 @@ def fempoi2d(h, domain_length, t):
             yy = 0
             for jj in mapping:
                 A[ii, jj] += elem_A[xx, yy]
-                b[ii] += elem_b[xx]
+                b[ii, 0] += elem_b[xx]
                 yy += 1
             xx += 1
 
@@ -86,6 +88,9 @@ def fempoi2d(h, domain_length, t):
         else:
             A[i-1, i] = 0
 
-    u = np.linalg.solve(A, b)
+    A = sps.csr_matrix(A)
+    b = sps.csr_matrix(b)
+    
+    u = spsolve(A, b)
     u = u.reshape(nodes_x, nodes_x)
     return u
