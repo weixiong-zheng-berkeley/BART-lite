@@ -26,7 +26,8 @@ class SAAF(object):
         self.sys_rhses = [0] * self.n_tot
         self.fixed_rhses = [0] * self.n_tot
         self.aflxes = [0] * self.n_tot
-        self.ho_sflxes = [0] * self.n_grp
+        # scalar flux for current calculation
+        self.sflxes = [0] * self.n_grp
         # linear solver objects
         self.lu = [0] * self.n_tot
 
@@ -42,7 +43,7 @@ class SAAF(object):
                 self.comp_dir[ct] = d
                 ct += 1
 
-    def assemble_fixed_linear_forms(self):
+    def assemble_fixed_linear_forms(self, sflxes_prev=None):
         '''@brief a function used to assemble fixed source or fission source on the
         rhs for all components
 
@@ -92,15 +93,30 @@ class SAAF(object):
             # solve direction d
             self.aflxes[comp[(g,d)]] = lu[comp[(g,d)]].solve(self.sys_rhses[comp[(g,d)]])
 
-    def generate_ho_sflx(self, g):
+    def calculate_sflx_diff(self, sflx_old, g):
         '''@brief function used to generate ho scalar flux for Group g using
         angular fluxes
 
+        @param sflx_old Scalar flux from previous generation
         @param g The group index
+        @return double The relative difference between new and old scalar flux
         '''
-        self.ho_sflxes[g] = self.aflxes[comp[(g,0)]]
+        # retrieve old values for scalar flux
+        sflxes_old[g]=np.ones(np.shape(self.aflxes[comp[(g,0)]])) \
+        if sflxes[g]==0 else self.sflxes[g]
+        # generate new scalar flux
+        self.sflxes[g] = self.aflxes[comp[(g,0)]]
         for d in xrange(1, self.n_dir):
-            self.ho_sflxes[g] += self.w_ang * self.aflxes[comp[(g,d)]]
+            self.sflxes[g] += self.w_ang * self.aflxes[comp[(g,d)]]
+        # return the l1 norm relative difference
+        return np.linalg.norm((self.sflxes[g]-sflx_old[g]),1) / \
+        np.linalg.norm(self.sflxes[g],1)
+
+
+    def get_sflxes(self, sflxes, g):
+        '''@brief Function called outside to retrieve the scalar flux value for Group g
+        '''
+        sflxes[g] = self.sflxes[g]
 
     def get_aflxes(self):
         '''@brief A function used to retrieve angular fluxes for NDA use
