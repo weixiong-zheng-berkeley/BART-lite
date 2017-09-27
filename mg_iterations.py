@@ -1,8 +1,11 @@
+import numpy as np
+
 '''
 class used to perform multigroup calculations
 '''
 class MG(object):
     def __init__(self):
+        # TODO: address constructor
         self.n_grp
         self.g_thr # the first group we see upscattering
         # iteration tol
@@ -19,7 +22,9 @@ class MG(object):
             # NDA is not used in this calse
             ho_cls.assemble_fixed_linear_forms()
             self.mg_iterations(ho_cls)
-        # TODO: add functionality for NDA calculations here
+        else:
+            # TODO: add NDA
+            raise NotImplementedError
 
     def mg_iterations(self, equ_cls):
         '''@brief Function used to do multigroup iterations
@@ -36,7 +41,7 @@ class MG(object):
         # Solve for thermal groups
         e,sflxes_old_mg = 1.0,[0]*(self.n_grp-self.g_thr)
         while e>self._tol:
-            e = self._tol
+            e = self._tol * 0.1
             for g in xrange(self.g_thr, self.n_grp):
                 equ_cls.assemble_linear_forms(g)
                 equ_cls.solve_in_group(g)
