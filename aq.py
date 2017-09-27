@@ -4,7 +4,7 @@ class for angular quadrature in 2D geometry
 import numpy as np
 from math import pi, cos, sin
 
-class aq(object):
+class AQ(object):
     def __init__(self, sn_ord):
         '''@brief Constructor of aq class
 
