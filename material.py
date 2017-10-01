@@ -54,6 +54,17 @@ class _mat():
 
     # PUBLIC FUNCTIONS
 
+    def cell_correction_ua(self, cell_correction):
+        i = int(self.gconst['g_thermal'])
+        v_x = np.dot(cell_correction[0][i:], self.derived['ksi_ua'])
+        v_y = np.dot(cell_correction[1][i:], self.derived['ksi_ua'])
+
+        return np.array([v_x, v_y])
+
+    def bd_correction_ua(self, bd_correction):
+        return np.dot(bd_correction, self.derived['ksi_ua'])
+
+    
     def get_props(self):
         # Returns an array of all the properties that the material has
         return [d.keys() for d in self.all_dict]
@@ -214,7 +225,7 @@ class _mat():
                 except ValueError:
                     val = el.text
         dict.update({el.tag: val})
-    
+
 
 class mat_lib():
     def __init__(self, n_grps, files=[]):
@@ -241,10 +252,39 @@ class mat_lib():
             raise RuntimeError("Cannot add file " + filename +
                   ", mat_id already exists in material library")
 
+    def cell_correction_ua(self, correction, mat_id=None):
+        data = self.__correction__(correction, c_type='cell')
+            
+        if mat_id:
+            return data[mat_id]
+        else:
+            return data
+
+    def bd_correction_ua(self, correction, mat_id=None):
+        data = self.__correction__(correction, c_type='bd')
+            
+        if mat_id:
+            return data[mat_id]
+        else:
+            return data
+
+    def __correction__(self, correction, c_type):
+        
+        data = {}
+        for mat in self.mats:
+            if c_type == 'cell':
+                data.update({mat.get('id') :
+                             mat.cell_correction_ua(correction)})
+            else:
+                data.update({mat.get('id') :
+                             mat.bd_correction_ua(correction)})
+        return data
+        
     def ids(self):
         """ Returns the id's of stored materials """
         return [mat.gen['id'] for mat in self.mats]
 
+    
     def get(self, prop, mat_id=''):
         """ Returns a dictionary with material ids as keys and the
         specified property as values"""
@@ -262,6 +302,15 @@ class mat_lib():
     def get_per_str(self, *args, **kwargs):
         
         return np.divide(self.get(*args, **kwargs), 4.0*np.pi)
+
+    def props(self, mat_id=None):
+        data = {}
+        for mat in self.mats:
+            data.update({mat.gen['id']: mat.get_props()})
+        if mat_id:
+            return data[mat_id]
+        else:
+            return data
     
     def __mat_data__(self, prop):
         data = {}
@@ -333,33 +382,3 @@ class mat_map():
             return array
         except KeyError:
             raise KeyError("Bad material id in mat_dictionary")
-            
-    
-class material(object):
-    def __init__(self):
-        pass
-    
-    def estimate_cell_correction_ua(self, cell_corrections_at_qp, material_id):
-        '''@brief function used to estimate one-group vector_D at quadrature points
-
-        @param cell_corrections_at_qp vector_D for all groups at the specific quadrature
-        point. Use numpy.array
-        @param material_id Materail ID for current cell
-        @return a one-group vector_D in forms of numpy array
-        '''
-        vector_D = np.array([0.0, 0.0])
-        # x component of vector_D
-        vector_D[0] = np.dot(cell_corrections_at_qp[0][self.g_thermal:], self.ksi_ua[material_id])
-        # y component of vector_D
-        vector_D[1] = np.dot(cell_corrections_at_qp[1][self.g_thermal:], self.ksi_ua[material_id])
-        return vector_D
-
-    def estimate_bd_correction_ua(self, bd_corrections_at_qp, material_id):
-        '''@brief function used to estimate one-group kappa at quadrature points
-
-        @param bd_corrections_at_qp kappa for all groups at the specific quadrature
-        point.
-        @param material_id Materail ID for current cell
-        @return a one-group kappa
-        '''
-        return np.dot(bd_corrections_at_qp, self.ksi_ua[material_id])
