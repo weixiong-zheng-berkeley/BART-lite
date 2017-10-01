@@ -367,7 +367,23 @@ class mat_map():
             k = loc
 
         return self.mat_lib.get(prop=prop, mat_id=self.array[k])
-            
+
+    def cell_correction_ua(self, correction, loc):
+        if isinstance(loc, tuple):
+            k = int(loc[0]/self.dx) + int(loc[1]/self.dy)*self.n
+        else:
+            k = loc
+        return self.mat_lib.cell_correction_ua(correction,
+                                               mat_id=self.array[k])
+
+    def bd_correction_ua(self, correction, loc):
+        if isinstance(loc, tuple):
+            k = int(loc[0]/self.dx) + int(loc[1]/self.dy)*self.n
+        else:
+            k = loc
+        return self.mat_lib.bd_correction_ua(correction,
+                                             mat_id=self.array[k])
+    
         
     def __build_array__(self):
         # Builds the array
