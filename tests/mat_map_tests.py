@@ -24,7 +24,7 @@ class TestFunctionality:
                          1 2 2 1
                          1 1 1 1 """
         cls.testmap = mat_map(lib=cls.lib, layout=goodmap,
-                              mat_dict = cls.mat_dict, x_max = 10, n=20)
+                              layout_dict = cls.mat_dict, x_max = 10, n=20)
 
     # TEST CONSTRUCTOR ###############################################
 
@@ -41,7 +41,7 @@ class TestFunctionality:
     @raises(AssertionError)
     def test_init_with_bad_map(self):
         badMap = mat_map(lib=self.lib, layout=self.badmap,
-                         mat_dict = self.mat_dict, x_max = 10, n=20)
+                         layout_dict = self.mat_dict, x_max = 10, n=20)
 
     def test_final_map_x_y(self):
         """ Final map should return the correct values """

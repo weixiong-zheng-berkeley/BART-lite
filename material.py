@@ -272,14 +272,14 @@ class mat_lib():
         return data        
 
 class mat_map():
-    def __init__(self, lib, layout, mat_dict, x_max, n, x_min=0,
+    def __init__(self, lib, layout, layout_dict, x_max, n, x_min=0,
                  y_min=0, y_max=None):
         """ mat map will create a material map based on a string input
         map and problem parameters """
         x = [x_min, x_max]
         y = [y_min, y_max] if y_max else [y_min, x_max]
         
-        self.mat_dict = mat_dict
+        self.mat_dict = layout_dict
         self.mat_lib = lib
 
         try:
