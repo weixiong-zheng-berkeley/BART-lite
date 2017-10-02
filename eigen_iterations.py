@@ -30,7 +30,7 @@ class Eigen(object):
         sflxes_prev = [np.ones(self.n_dof) for _ in xrange(self.n_grp)]
         e,ek,keff = 1.0,1.0,1.0
         while e>self._tol and ek>self._k_tol:
-            equ_cls.assemble_fixed_linear_forms(equ_cls)
+            equ_cls.assemble_fixed_linear_forms()
             self.mg.mg_iterations(equ_cls)
             keff_prev,keff = keff,equ_cls.calculate_keff()
             ek,e = abs((keff-keff_prev)/keff),self._tol*0.1

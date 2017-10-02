@@ -43,7 +43,7 @@ class MG(object):
         while e>self._tol:
             e = self._tol * 0.1
             for g in xrange(self.g_thr, self.n_grp):
-                equ_cls.assemble_linear_forms(g)
+                equ_cls.assemble_group_linear_forms(g)
                 equ_cls.solve_in_group(g)
                 # calculate mg iteration error for group g
                 equ_cls.calculate_sflx_diff(sflxes_old_mg,g)

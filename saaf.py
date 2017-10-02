@@ -1,18 +1,19 @@
 import numpy as np
 from scipy import sparse, sparse.linalg as sla
+from itertools import product as pd
+from elem import *
 
 class SAAF(object):
     def __init__(self, mat_cls, aq_cls):
         #TODO: address constructor
         # material data
-        self.mat = mat_cls
+        self.mat_cls = mat_cls
         self.n_grp = mat_cls.get_n_groups()
         # problem type: is problem eigenvalue problem
         self.is_eigen = mat_cls.get_eigen_bool()
-        # angular data
-        self.omega = aq_cls['omega']
-        self.w_ang = aq_cls['wt']
-        self.n_dir = aq_cls['n_dir']
+        # aq data in forms of dictionary
+        self.aq = aq_cls.get_aq_data()
+        self.n_dir = self.aq['n_dir']
         # total number of components in HO
         self.n_tot = self.n_grp * self.n_dir
         # get a component indexing mapping
@@ -33,6 +34,8 @@ class SAAF(object):
         self.sflxes = [np.array(np.ones(self.n_dof)) for _ in xrange(self.n_grp)]
         # linear solver objects
         self.lu = [0] * self.n_tot
+        # source iteration tol
+        self._tol = 1.0e-7
 
     def _generate_component_map(self):
         '''@brief Internal function used to generate mappings between component,
@@ -59,23 +62,20 @@ class SAAF(object):
 
         Must be called only once.
         '''
-        for d in xrange(self.n_dir):
-            # TODO preassemble streaming matrix without 1/sigt
-            # and mass matrix without sigt
-
+        mass = np.array([[]])
+        for i in xrange(self.n_tot):
+            # get the group and direction indices
+            g,d = self.comp_grp[i],self.comp_dir[i]
+            omega = self.aq[d]['omega']
+            strm_pre = np.zeros((4,4))
+            mass_pre = np.zeros((4,4))
+            oxox,oxoy,oyox,oyoy = self.aq[d]['dir_prods']
+            local_matrices = []
+            for m in xrange(self.n_mat):
+                local_sigt = self.mat_cls.get('sig_t',m)[g]#TODO: check with Josh
+                local_inv_sigt = self.mat_cls.get('inv_sig_t',m)[g]
+                local_matrix = oxox*dxdx + oxoy*(dxdy + dydx) + oyoy*dydy
         # TODO: fill in bilinear forms assembly code
-
-    def assemble_linear_forms(self):
-        '''@brief Function used to assemble all linear forms
-
-        Different from assemble_group_linear_forms, which assembles linear forms
-        for a specific group, this function calls assemble_group_linear_forms to
-        assemble linear forms for all groups
-        --------
-        This function will only be called when NDA is used.
-        '''
-        for g in xrange(self.n_grp):
-            self.assemble_group_linear_forms(g)
 
     def assemble_group_linear_forms(self,g):
         '''@brief Function used to assemble linear forms for Group g
@@ -88,20 +88,30 @@ class SAAF(object):
 
         @param g Group index
         '''
-        assert 0<=g<=self.n_grp, 'Group index out of range'
-        # TODO: we need source iteration here, the following is wrong
-        for d in xrange(self.n_dir):
-            # if not factorized, factorize the the HO matrices
-            if lu[comp[(g,d)]]==0:
-                lu[comp[(g,d)]] = sla.splu(self.sys_mats[comp[(g,d)]])
-            # solve direction d
-            self.aflxes[comp[(g,d)]] = lu[comp[(g,d)]].solve(self.sys_rhses[comp[(g,d)]])
+        assert 0<=g<self.n_grp, 'Group index out of range'
+        # Source iteration
+        e = 1.0
+        while e>self._tol:
+            # assemble group rhses
+            self.assemble_group_linear_forms(g)
+            sflx_old = self.sflxes[g]
+            self.sflxes *= 0
+            for d in xrange(self.n_dir):
+                # if not factorized, factorize the the HO matrices
+                if self.lu[comp[(g,d)]]==0:
+                    self.lu[comp[(g,d)]] = sla.splu(self.sys_mats[comp[(g,d)]])
+                # solve direction d
+                self.aflxes[comp[(g,d)]] = self.lu[comp[(g,d)]].solve(self.sys_rhses[comp[(g,d)]])
+                self.sflxes[g] += self.aq[d]['wt'] * self.aflxes[comp[(g,d)]]
+            # calculate difference for SI convergence
+            e = np.linalg.norm(sflx_old - self.sflxes[g],1) / \
+            np.linalg.norm (self.sflxes[g],1)
 
     def calculate_keff(self):
         assert not self.is_eigen, 'only be called in eigenvalue problems'
         # TODO: fill in this function
 
-    def calculate_sflx_diff(self, sflx_old, g):
+    def calculate_sflx_diff(self, sflxes_old, g):
         '''@brief function used to generate ho scalar flux for Group g using
         angular fluxes
 
@@ -112,11 +122,11 @@ class SAAF(object):
         # retrieve old values for scalar flux
         sflxes_old[g] = self.sflxes[g]
         # generate new scalar flux
-        self.sflxes[g] = self.aflxes[comp[(g,0)]]
+        self.sflxes[g] = self.aq[0]['wt'] * self.aflxes[comp[(g,0)]]
         for d in xrange(1, self.n_dir):
-            self.sflxes[g] += self.w_ang * self.aflxes[comp[(g,d)]]
+            self.sflxes[g] += self.aq[d]['wt'] * self.aflxes[comp[(g,d)]]
         # return the l1 norm relative difference
-        return np.linalg.norm((self.sflxes[g]-sflx_old[g]),1) / \
+        return np.linalg.norm((self.sflxes[g]-sflxes_old[g]),1) / \
         np.linalg.norm(self.sflxes[g],1)
 
     def get_sflxes(self, sflxes, g):

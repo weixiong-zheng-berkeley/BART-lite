@@ -39,7 +39,8 @@ class AQ(object):
             for i in range(n_level):
                 phi = (i + 0.5) * delta
                 ox, oy = (1-mu**2.)**0.5 * cos(phi), (1-mu**2.)**0.5 * sin(phi)
-                self.aq_data[ct] = {'omega':np.array([ox, oy]), 'wt':w}
+                self.aq_data[ct] = {'omega':np.array([ox, oy]), 'wt':w,\
+                'dir_prods':(ox*ox,ox*oy,oy*ox,oy*oy)}
                 ct += 1
         assert ct==self.n_dir "number of total directions are wrong"
         self.aq_data['n_dir'] = ct
