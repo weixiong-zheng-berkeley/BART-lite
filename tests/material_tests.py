@@ -1,5 +1,4 @@
 from nose.tools import *
-from material import material
 from material import _mat
 import numpy as np
 
@@ -76,7 +75,7 @@ class TestFunctionality:
     def test_mat_calc_nu_sigf(self):
         """ Calculated nu_sigf should be correct value """
         ok_(np.allclose(self.testmat.derived['chi_nu_sig_f'],
-                        np.array([28.75, 103.5])),
+                        np.array([[28.75, 34.5], [86.25, 103.5]])),
             "Chi_nu_sig_f should be the correct value")
 
     def test_mat_no_xsec_no_chi_nu_sig_f(self):

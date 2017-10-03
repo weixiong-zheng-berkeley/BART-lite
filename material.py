@@ -111,8 +111,17 @@ class _mat():
     def __derive_fiss__(self):
         # Calculate derived quantities based on fission properties
 
-        chi_nu_sig_f = np.multiply(self.gconst['chi'],
-                                   self.prop['nu']*self.xsec['sig_f'])
+        if 'chi' in self.gconst and 'sig_f' in self.xsec:
+            vec_2 = self.prop['nu']*self.xsec['sig_f']
+        elif 'nu_sig_f' in self.xsec:
+            vec_2 = self.xsec['nu_sig_f']
+        elif 'nu_sig_f' in self.gconst:
+            vec_2 = self.gconst['nu_sig_f']
+        else:
+            vec_2 = np.array([0,0])
+            
+        chi_nu_sig_f = np.outer(self.gconst['chi'], vec_2)
+                                       
         self.derived.update({'chi_nu_sig_f': chi_nu_sig_f})
 
     def __derive_thermal__(self):
@@ -170,6 +179,8 @@ class _mat():
             self.__dict_add__(self.xsec, el)
 
         if 'nu' in self.prop and 'sig_f' in self.xsec:
+            self.isSource = True
+        elif 'nu_sig_f' in self.xsec or 'nu_sig_f' in self.gconst:
             self.isSource = True
         else:
             self.isSource = False
