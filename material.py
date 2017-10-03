@@ -398,4 +398,3 @@ class mat_map():
             return array
         except KeyError:
             raise KeyError("Bad material id in mat_dictionary")
->>>>>>> 7f9cc8cce4cf43e8d14ae7a91644665d8f2a110d
