@@ -22,7 +22,7 @@ class Eigen(object):
             self.eigen_iterations(ho_cls)
         else:
             # TODO: add NDA
-            raise NotImplementedError
+            for g in xrange(self.n_grp)
 
     def eigen_iterations(self, equ_cls):
         '''@brief Function to be called in do_iterations
