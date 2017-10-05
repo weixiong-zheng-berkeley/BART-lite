@@ -4,6 +4,8 @@ import re
 from math import pi
 import os, sys
 import xml.etree.cElementTree as ET
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 class _mat():
     def __init__(self, filename, grps, tr_scatt=False):
@@ -242,7 +244,7 @@ class _mat():
 
 
 class mat_lib():
-    def __init__(self, n_grps, files=[]):
+    def __init__(self, n_grps, files=[], tr_scatt=False):
         '''Material Library class, holds multiple _mat objects provided
         at initialization or added later.
 
@@ -252,13 +254,14 @@ class mat_lib():
         self._n_grps = n_grps # Energy groups
 
         for f in files:
-            self.add(f)
+            self.add(f, tr_scatt)
 
-    def add(self, filename):
+    def add(self, filename, tr_scatt):
         """ Adds the material stored in filename to the library, if it
         is not already in there. """
 
-        new_mat = _mat(filename, grps = self._n_grps)
+        new_mat = _mat(filename, grps = self._n_grps,
+                       tr_scatt=tr_scatt)
 
         if new_mat.gen['id'] not in self.ids():
             self.mats.append(new_mat)
@@ -378,6 +381,30 @@ class mat_map():
 
         self.array = self.__build_array__()
 
+    def plot(self):
+        n = int(np.sqrt(len(self.array)))
+        mat_set = list(set(self.array))
+        layout = [self.array[x:x+n] 
+                  for x in range(0,len(self.array), n)]
+        for j, s in enumerate(mat_set):
+            for i, row in enumerate(layout):
+                layout[i] = [r.replace(s, str(j*10)) for r in row]
+        fl_array = np.flipud(np.array([map(float,row) for row in layout]))
+
+        plt.figure(figsize=(6,6))
+        values = np.unique(fl_array)
+        im = plt.imshow(fl_array, interpolation='none', extent=[0,n,0,n])
+        colors = [ im.cmap(im.norm(value)) for value in values]
+        # create a patch (proxy artist) for every color 
+        patches = [ mpatches.Patch(color=colors[i], 
+                                   label="{l}".format(l=mat_set[int(values[i]/10.0)])) for i in range(len(values)) ]
+        # put those patched as legend-handles into the legend
+        plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0. )
+
+        plt.grid(True)
+        plt.show()
+        
+        
     def get(self, prop, loc):
         # Get property from material at given location, loc is either
         # the index of the location k or a tuple of x and y
