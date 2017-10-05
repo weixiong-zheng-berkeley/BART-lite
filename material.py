@@ -195,12 +195,12 @@ class _mat():
         # Verify that all cross-sections have the same number of groups
         # by checking that the dimensions are all identical
 
-        for a in self.xsec.values():
+        for key, a in self.xsec.iteritems():
             if np.shape(a) != (self.n_grps,) and\
                np.shape(a) != (self.n_grps, self.n_grps):
                 raise RuntimeError(filename +
                                """: Cross-sections must have the
-                               same dimensions""")
+                               same dimensions, error with: """ + key)
 
         # Verify that all cross-sections are positive
         if not all([np.all(m) for m in map(lambda x: x>=0,
