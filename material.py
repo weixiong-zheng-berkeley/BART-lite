@@ -246,7 +246,7 @@ class mat_lib():
         files: list of filenames to material xml files
         '''
         self.mats = []       # Holds all materials
-        self.n_grps = n_grps # Energy groups
+        self._n_grps = n_grps # Energy groups
 
         for f in files:
             self.add(f)
@@ -255,7 +255,7 @@ class mat_lib():
         """ Adds the material stored in filename to the library, if it
         is not already in there. """
 
-        new_mat = _mat(filename, grps = self.n_grps)
+        new_mat = _mat(filename, grps = self._n_grps)
 
         if new_mat.gen['id'] not in self.ids():
             self.mats.append(new_mat)
@@ -279,6 +279,9 @@ class mat_lib():
         else:
             return data
 
+    def n_grps(self):
+        return self._n_grps
+        
     def __correction__(self, correction, c_type):
 
         data = {}
@@ -300,6 +303,9 @@ class mat_lib():
         """ Returns a dictionary with material ids as keys and the
         specified property as values"""
 
+        if prop == 'n_grps':
+            return self._n_grps
+        
         data = self.__mat_data__(prop)
 
         if mat_id:

@@ -54,6 +54,11 @@ class TestFunctionality:
         ok_(np.array_equal(self.lib.get('sig_t', mat_id='test_mat'),
                            np.array([20.0, 30.0])))
 
+    def test_get_n_grps(self):
+        """ Getting number of groups should return the correct value """
+        eq_(self.lib.n_grps(), 2, 'n_grps function')
+        eq_(self.lib.get('n_grps'), 2, 'get(n_grps) function')
+        
     @raises(KeyError)
     def test_get_bad_id(self):
         """ Requesting with a bad id should return a key error """
