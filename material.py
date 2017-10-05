@@ -6,7 +6,7 @@ import os, sys
 import xml.etree.cElementTree as ET
 
 class _mat():
-    def __init__(self, filename, grps):
+    def __init__(self, filename, grps, tr_scatt=False):
         """ Constructor of a single material, reads from a provided
         filename and parses the required data from the xml file
 
@@ -38,6 +38,9 @@ class _mat():
 
         self.__parse_XML__(filename, grps)  # Parse input XML file
         self.__validate__(filename)         # Validate material data
+
+        if 'sig_s' in self.xsec and tr_scatt:
+            self.xsec['sig_s'] = np.transpose(self.xsec['sig_s'])
 
         if 'sig_t' in self.xsec:
             self.__derive_sig_t__()         # Calc sig_t derv. prop

@@ -16,6 +16,7 @@ class TestFunctionality:
         zeroXsecFile = testData_loc + 'test_mat_zero_xsec.xml'
         threeGFile = testData_loc + 'test_mat_3grps.xml'
         cls.testmat = _mat(filename, grps = 2)
+        cls.testmatT = _mat(filename, grps = 2, tr_scatt=True)
         cls.testNSmat = _mat(NSfile, grps = 2)
         cls.testNXmat = _mat(noXsecFile, grps = 2)
         cls.testZXmat = _mat(zeroXsecFile, grps = 2)
@@ -48,6 +49,10 @@ class TestFunctionality:
     def test_scattering_matrix(self):
         ok_(np.array_equal(self.testmat.xsec['sig_s'],
                            np.array([[40,10],[20,30]])))
+
+    def test_scattering_matrix_transpose(self):
+        ok_(np.array_equal(self.testmatT.xsec['sig_s'],
+                           np.array([[40, 20],[10, 30]])))
         
     # DERIVED QUANTITIES =============================================
 
