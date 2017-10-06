@@ -256,7 +256,7 @@ class mat_lib():
         for f in files:
             self.add(f, tr_scatt)
 
-    def add(self, filename, tr_scatt):
+    def add(self, filename, tr_scatt=False):
         """ Adds the material stored in filename to the library, if it
         is not already in there. """
 
