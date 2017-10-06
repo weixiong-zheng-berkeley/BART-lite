@@ -1,4 +1,3 @@
-""" Mesh generator for a structured, square, cartesian mesh."""
 import numpy as np
 
 def mesh_gen(cells):
@@ -9,3 +8,9 @@ def mesh_gen(cells):
         XY[i, j, 0] = xx[i]
         XY[i, j, 1] = xx[j]
   return XY
+
+class Cell():
+  """ A single cell in the mesh, holds location and material data """
+
+  def __init__(self):
+    pass
