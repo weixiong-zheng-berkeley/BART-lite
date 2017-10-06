@@ -18,6 +18,9 @@ class AQ(object):
         self.n_dir = (sn_ord+2) * sn_ord / 2
         # make aq data
         self._quad2d()
+        # store the outward normal vectors on boundaries
+        self.aq_data['boundary_normal'] =
+        {'xmin':(-1.,0),'xmax':(1.,0),'ymin':(0,-1.),'ymax':(0,1.)}
 
     def _quad2d(self):
         '''@brief Internal function used to calculate aq data
