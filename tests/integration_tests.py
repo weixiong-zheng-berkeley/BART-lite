@@ -1,9 +1,9 @@
 from nose.tools import *
-from mesh import Cell
+from mesh import Cell, Mesh
 from material import mat_lib, mat_map
 import numpy as np
 
-class TestIntegration_Cell_Materials:
+class TestIntegration_Mesh_Materials:
     # Tests to verify integration of materials and cells
     
     @classmethod
@@ -25,6 +25,49 @@ class TestIntegration_Cell_Materials:
         # Cell:
         cls.mesh_params = {'x_cell': 8,
                            'cell_length': 1.25}
+
+    def test_mesh_init(self):
+        mesh_cells = 4
+        domain_upper = 10
+        mesh = Mesh(mesh_cells, domain_upper, self.testmap)
+        mesh_params = {'x_cell': 4,
+                       'cell_length': 2.5}
+        eq_(mesh._mesh_params, mesh_params)
+
+    def test_mesh_cells_size(self):
+        mesh_cells = 4
+        domain_upper = 10
+        mesh = Mesh(mesh_cells, domain_upper, self.testmap)
+        eq_(len(mesh.cells()), mesh_cells**2)
+
+    def test_mesh_props(self):
+        mesh_cells = 4
+        domain_upper = 10
+        mesh = Mesh(mesh_cells, domain_upper, self.testmap)
+        eq_(mesh.n_cell(), 16, "n_cell value")
+        eq_(mesh.n_node(), 25, "n_node value")
+        eq_(mesh.x_cell(), 4, "x_cell value")
+        eq_(mesh.y_cell(), 4, "y_cell value")
+        eq_(mesh.x_node(), 5, "x_node value")
+        eq_(mesh.y_node(), 5, "y_node value")
+        eq_(mesh.cell_length(), 2.5, "cell length value")
+        
+
+    @raises(AssertionError)
+    def test_mesh_cells_is_int(self):
+        mesh_cells = 4.5
+        domain_upper = 10
+        mesh = Mesh(mesh_cells, domain_upper, self.testmap)
+        mesh_params = {'x_cell': 4,
+                       'cell_length': 2.5}
+
+    @raises(AssertionError)
+    def test_mesh_size_to_map(self):
+        """ Mesh size must be the same as the matmap size """
+        mesh_cells = 4
+        domain_upper = 8
+        mesh = Mesh(mesh_cells, domain_upper, self.testmap)
+                    
 
     def test_material_at_locations(self):
         for param in [((1,1), 'test_mat'),

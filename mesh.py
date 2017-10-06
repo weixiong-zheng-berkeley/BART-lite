@@ -9,6 +9,60 @@ def mesh_gen(cells):
         XY[i, j, 1] = xx[j]
   return XY
 
+class Mesh(object):
+  def __init__(self, mesh_cells, domain_upper, mat_map):
+    assert type(mesh_cells) == int, "mesh_cells must be an int"
+    self._mesh_params = {'x_cell': mesh_cells,
+                         'cell_length': float(domain_upper)/float(mesh_cells)}
+
+    self._mat_map = mat_map
+
+    i = np.repeat(np.arange(mesh_cells), mesh_cells)
+    j = np.tile(np.arange(mesh_cells), mesh_cells)
+    idxs = zip(i,j)
+
+    self._cells = []
+
+    for idx in idxs:
+      self._cells.append(Cell(idx, self._mesh_params, mat_map))
+
+    # Save parameters
+    self._n_cell = mesh_cells**2
+    assert self._n_cell == len(self._cells),\
+                          "Cell array incorrect length"
+
+    self._x_cell = mesh_cells
+    self._y_cell = mesh_cells
+    self._x_node = mesh_cells + 1
+    self._y_node = mesh_cells + 1
+    self._n_node = self._x_node * self._y_node
+    self._cell_length = self._mesh_params['cell_length']
+    
+
+  def cell_length(self):
+    return self._cell_length
+    
+  def cells(self):
+    return self._cells
+
+  def n_cell(self):
+    return self._n_cell
+
+  def n_node(self):
+    return self._n_node
+
+  def x_cell(self):
+    return self._x_cell
+
+  def x_node(self):
+    return self._x_node
+
+  def y_cell(self):
+    return self._y_cell
+
+  def y_node(self):
+    return self._y_node
+
 class Cell(object):
   """ A single cell in the mesh, holds location and material data """
 
@@ -50,11 +104,11 @@ class Cell(object):
    
     if index[0] == 0:
       self._bounds.update({'x_min': None})
-    if index[0] == y_cell:
+    if index[0] == y_cell - 1:
       self._bounds.update({'x_max': None})
     if index[1] == 0:
       self._bounds.update({'y_min': None})
-    if index[1] == x_cell:
+    if index[1] == x_cell - 1:
       self._bounds.update({'y_max': None})
 
     # Get material properties
