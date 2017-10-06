@@ -12,7 +12,7 @@ def mesh_gen(cells):
 class Cell(object):
   """ A single cell in the mesh, holds location and material data """
 
-  def __init__(self, index, mesh_params, bound=None, mat_lib=None):
+  def __init__(self, index, mesh_params, mat_map=None):
     """ Cell constructor, give index in a tuple (i,j) """
     
     # Constructor validations
@@ -41,8 +41,8 @@ class Cell(object):
                         x_node*(i + 1) + j + 1]
     
     # Get material properties
-    if mat_lib:
-      self.__material_props__(mat_lib)
+    if mat_map:
+      self._mat_map = mat_map
 
     # Determine if on a boundary
     self._bounds = {}
@@ -64,11 +64,22 @@ class Cell(object):
 
   # UTILITY FUNCTIONS ================================================
 
-  def __material_props__(self, mat_lib):
-    pass
+  # MATERIAL PROPERTIES  ==============================================
+  def get(self, prop):
+    try:
+      x = self._length*(self._index[0] + 0.5)
+      y = self._length*(self._index[1] + 0.5)
+    
+      return self._mat_map.get(prop, loc=(x,y))
+    except AttributeError:
+      raise AttributeError("This cell has no material map assigned")
 
-  # PROPERTIES =======================================================
-
+  
+  # ATTRIBUTES  =======================================================
+    
+  def area(self):
+    return self._area
+  
   def bounds(self, bound=None, value=None):
     if bound and bound in self._bounds:
       if value:
@@ -78,13 +89,7 @@ class Cell(object):
     elif bound and not bound in self._bounds:
       raise KeyError("Cell does not have bound " + str(bound))
     else:
-      return self._bounds
-    
-  
-  # ATTRIBUTES  ==========================================================
-    
-  def area(self):
-    return self._area
+      return self._bounds    
   
   def global_idx(self):
     """ Returns global index, a list of the node indices """
