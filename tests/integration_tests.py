@@ -41,5 +41,5 @@ class TestIntegration_Cell_Materials:
         """ Mesh must be the same size as the mat mapping """
         mesh_params = {'x_cell': 8,
                        'cell_length': 2}
-        cell = Cell((1,1), self.mesh_params, self.testmap)
+        cell = Cell((1,1), mesh_params, self.testmap)
         

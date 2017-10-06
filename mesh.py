@@ -40,10 +40,6 @@ class Cell(object):
                         x_node*(i + 1) + j,
                         x_node*(i + 1) + j + 1]
     
-    # Get material properties
-    if mat_map:
-      self._mat_map = mat_map
-
     # Determine if on a boundary
     self._bounds = {}
     x_cell = mesh_params['x_cell']
@@ -60,6 +56,15 @@ class Cell(object):
       self._bounds.update({'y_min': None})
     if index[1] == x_cell:
       self._bounds.update({'y_max': None})
+
+    # Get material properties
+    if mat_map:
+      assert (mat_map.dx * mat_map.n) == (x_cell * self._length),\
+        "Material map and cells must have the same total x length"
+      assert (mat_map.dy * mat_map.n) == (y_cell * self._length),\
+        "Material map and cells must have the same total y length"
+      
+      self._mat_map = mat_map
 
 
   # UTILITY FUNCTIONS ================================================
