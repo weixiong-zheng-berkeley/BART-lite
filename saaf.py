@@ -109,8 +109,8 @@ class SAAF(object):
             # loop over cells for assembly
             # sys_mat: temp variable for system matrix for one component
             sys_mat = sps.lil_matrix((nodes, nodes))
-            for c in xrange(N_CELL):
-                idx,mid = self.cell_info['global_idx'][c],self.cell_info['id'][c]
+            for cell in mesh.cells:
+                idx,mid = cell.global_idx(),cell.id()#TODO: modify after Josh's work
                 for ci in xrange(4):
                     for cj in xrange(4):
                         sys_mat[idx[ci]][idx[cj]] += lhs_mats[mid][ci][cj]
@@ -208,8 +208,7 @@ class SAAF(object):
         for d in xrange(1, self.n_dir):
             self.sflxes[g] += self.aq[d]['wt'] * self.aflxes[comp[(g,d)]]
         # return the l1 norm relative difference
-        return np.linalg.norm((self.sflxes[g]-sflxes_old[g]),1) / \
-        np.linalg.norm(self.sflxes[g],1)
+        return norm((self.sflxes[g]-sflxes_old[g]),1) / norm(self.sflxes[g],1)
 
     def get_sflxes(self, sflxes, g):
         '''@brief Function called outside to retrieve the scalar flux value for Group g
@@ -219,6 +218,10 @@ class SAAF(object):
         sflxes[g] = self.sflxes[g]
 
     def get_keff(self):
+        '''@brief A function used to retrieve keff
+
+        @return keff calculated in SAAF class
+        '''
         return self.keff
 
     def get_aflxes_at_qp(self, cell, aflxes_g, g):
