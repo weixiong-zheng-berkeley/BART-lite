@@ -68,7 +68,7 @@ class Cell(object):
       assert mesh_params['cell_length'] > 0, "cell_length must be greater than 0"
     except KeyError:
       raise KeyError("Missing 'cell_length' parameter in mesh_params")
-    
+
     self._index  = index
 
     try:
@@ -92,7 +92,11 @@ class Cell(object):
       y_cell = mesh_params['y_cell']
     except KeyError:
       y_cell = x_cell
-   
+
+    # Verify cell is in the mesh
+    assert i < x_cell, "Cell i exceeds num of x nodes"
+    assert j < y_cell, "Cell j exceeds num of y nodes"
+      
     if index[0] == 0:
       self._bounds.update({'x_min': None})
     if index[0] == y_cell - 1:

@@ -28,25 +28,30 @@ class TestCells:
         ok_(not self.cell.bounds(), "non boundary cell")
         
     def test_is_boundary(self):
-        for index in [(4,1), (2, 4), (0, 2), (3,0)]:
+        for index in [(3,1), (2, 3), (0, 2), (3,0)]:
             b_cell = Cell(index, self.mesh_params)
             ok_(b_cell.bounds(), "boundary cell")
 
     def test_boundaries(self):
-        for param in [('x_max', (4,1)),
-                      ('y_max', (2,4)),
+        for param in [('x_max', (3,1)),
+                      ('y_max', (2,3)),
                       ('x_min', (0,2)),
                       ('y_min', (3,0))]:
             b_cell = Cell(param[1], self.mesh_params)
             ok_(param[0] in b_cell.bounds())
 
-    def test_multiple_bounds(self):
+    @raises(AssertionError)
+    def test_bad_index(self):
         index = (4,4)
+        b_cell = Cell(index, self.mesh_params)
+            
+    def test_multiple_bounds(self):
+        index = (3,3)
         b_cell = Cell(index, self.mesh_params)
         ok_('y_max' in b_cell.bounds() and 'x_max' in b_cell.bounds())
 
     def test_set_bounds(self):
-        index = (4,4)
+        index = (3,3)
         b_cell = Cell(index, self.mesh_params)
         b_cell.bounds('x_max', 'refl')
         eq_(b_cell.bounds('x_max'), 'refl')
