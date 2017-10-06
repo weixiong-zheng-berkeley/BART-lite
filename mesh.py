@@ -45,21 +45,53 @@ class Cell(object):
       self.__material_props__(mat_lib)
 
     # Determine if on a boundary
-    
+    self._bounds = {}
+    x_cell = mesh_params['x_cell']
+    try:
+      y_cell = mesh_params['y_cell']
+    except KeyError:
+      y_cell = x_cell
+   
+    if index[0] == 0:
+      self._bounds.update({'x_min': None})
+    if index[0] == y_cell:
+      self._bounds.update({'x_max': None})
+    if index[1] == 0:
+      self._bounds.update({'y_min': None})
+    if index[1] == x_cell:
+      self._bounds.update({'y_max': None})
+
 
   # UTILITY FUNCTIONS ================================================
 
   def __material_props__(self, mat_lib):
     pass
+
+  # PROPERTIES =======================================================
+
+  def bounds(self, bound=None, value=None):
+    if bound and bound in self._bounds:
+      if value:
+        self._bounds[bound] = value
+      else:
+        return self._bounds[bound]
+    elif bound and not bound in self._bounds:
+      raise KeyError("Cell does not have bound " + str(bound))
+    else:
+      return self._bounds
     
-  # Getters ==========================================================
+  
+  # ATTRIBUTES  ==========================================================
     
   def area(self):
     return self._area
-   
+  
   def global_idx(self):
     """ Returns global index, a list of the node indices """
     return self._global_idx
 
+  def index(self):
+    return self._index
+  
   def length(self):
     return self._length
