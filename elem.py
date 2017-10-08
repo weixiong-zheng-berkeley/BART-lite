@@ -282,6 +282,7 @@ class Elem(object):
         self._b0 = lambda x: (self._cell_length-x)/self._cell_length
         self._b1 = lambda x: x/self._cell_length
 
+    # get preassembled matrices
     def mass(self):
         return self._mass
 
