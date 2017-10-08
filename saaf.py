@@ -17,6 +17,7 @@ class SAAF(object):
         self._sigts = mat_cls.get('sig_t')
         self._isigts = mat_cls.get('inv_sig_t')
         self._fiss_xsecs = mat_cls.get_per_str('chi_nu_sig_f')
+        self._nu_sigfs = mat_cls.get('nu_sig_f')
         self._sigses = mat_cls.get_per_str('sig_s')
         self._mids = mat_cls.ids()
         # problem type: is problem eigenvalue problem
@@ -177,13 +178,28 @@ class SAAF(object):
             # calculate difference for SI convergence
             e = norm(sflx_old - self._sflxes[g],1) / norm (self._sflxes[g],1)
 
-    def calculate_keff(self):
+    def calculate_keff_err(self):
         assert not self._is_eigen, 'only be called in eigenvalue problems'
+        # update the previous fission source and previous keff
+        self._fiss_src_prev,self._keff_prev = self._fiss_src,self._keff
+        # calculate the new fission source
         self._calculate_fiss_src()
+        # calculate the new keff
+        self._keff = self._keff_prev * self._fiss_src / self._fiss_src_prev
+        return abs(self._keff-self._keff_prev)/abs(self._keff)
 
     def _calculate_fiss_src(self):
         self._fiss_src = 0
-        # loop over cells
+        # loop over cells and groups and calculate nu_sig_f*phi
+        # NOTE: the following calculation is using mid-point rule for integration
+        # It will suffice only for constant,RT1 and bilinear finite elements.
+        self._fiss_src = 0
+        for cell in self._mesh.cells():
+            idx,mid = cell.global_idx(),cell.id()
+            nusigf = self._nu_sigfs[mid]
+            for g in xrange(self._n_grp):
+                local_sflx = 0.25*sum(self._sflxes[g][idx])
+                self._fiss_src += nusigf[g]*local_sflx
 
     def calculate_sflx_diff(self, sflxes_old, g):
         '''@brief function used to generate ho scalar flux for Group g using
