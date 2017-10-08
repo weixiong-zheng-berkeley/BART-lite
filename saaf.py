@@ -52,6 +52,8 @@ class SAAF(object):
         # fission source
         self._fiss_src = self._calculate_fiss_src(self._sflxes)
         self._fiss_src_prev
+        # assistance:
+        self._mat_inds = pd(xrange(4),xrange(4))
 
     def _generate_component_map(self):
         '''@brief Internal function used to generate mappings between component,
@@ -107,6 +109,16 @@ class SAAF(object):
                 for ci in xrange(4):
                     for cj in xrange(4):
                         sys_mat[idx[ci],idx[cj]] += lhs_mats[mid][ci][cj]
+                #TODO: boundary part
+                if cell.bounds():
+                    for bd in cell.bounds().keys():
+                        if self._aq['bd_angle'][(bd,d)]>0:
+                            #outgoing boundary
+                            odn,bd_mass = self._aq['bd_angle'][(bd,d)],self._elem.bdmt()[bd]
+                            for ci,cj in self._mat_inds:
+                                if bd_mass[ci][cj]>1.0e-14:
+                                    sys_mat[idx[ci],idx[cj]] += odn*bd_mass[ci][cj]
+
             # transform lil_matrix to csc_matrix for efficient computation
             self._sys_mats[i] = sps.csc_matrix(sys_mat)
 
@@ -116,7 +128,6 @@ class SAAF(object):
 
         Generate numpy arrays and put them in self._
         '''
-        # TODO: add fixed source part. Current program is for eigenvalue Only
         assert sflxes_prev is not None and keff is not None, 'Only eigenvalue is implemented'
         # get properties per str scaled by keff
         for cp in xrange(self._n_tot):
@@ -147,11 +158,20 @@ class SAAF(object):
                 # get scattering matrix for current cell
                 sigs = self._sigses[mid]
                 # calculate local scattering source
-                scat_src = np.zeros(4)
+                scat_bd_src = np.zeros(4)
                 for gin in filter(lambda x: sigs[g][x]>1.0e-14, xrange(self._n_grp)):
                     local_sflx = self._sflxes[g][idx]
-                    scat_src += sigs[g,gin]*np.dot(self._rhs_mats[mid][(g,d)], local_sflx)
-                sys_rhses[cp][idx] += scat_src
+                    scat_bd_src += sigs[g,gin]*np.dot(self._rhs_mats[mid][(g,d)], local_sflx)
+                # if it's boundary
+                if cell.bounds():
+                    for bd,tp in cell.bounds().items():
+                        if tp=='refl' and self._aq['bd_angle'][(bd,d)]<0.0:
+                            r_dir = self._aq['refl_dir'][(bd,i)]
+                            idx,odn = cell.global_idx(),abs(self._aq['bd_angle'][(bd,d)])
+                            bd_mass = self._elem.bdmt()[bd]
+                            bd_aflx = self._aflxes[self._comp(g,r_dir)][idx]
+                            scat_bd_src += odn*np.dot(bd_mass,bd_aflx)
+                sys_rhses[cp][idx] += scat_bd_src
 
     def solve_in_group(self, sflxes_old, g):
         '''@brief Called to solve direction by direction inside Group g
@@ -236,7 +256,7 @@ class SAAF(object):
         for d in xrange(self._n_dir):
             cp,idx = self._comp[(g,d)],cell.global_idx()
             sol_at_vertices = self._aflxes[cp][idx]
-            aflxes_g[d] = get_sol_at_qps(sol_at_vertices)
+            aflxes_g[d] = self._elem.get_sol_at_qps(sol_at_vertices)
 
     def get_grad_aflxes_at_qp(self, cell, grad_aflxes_g, g):
         '''@brief A function used to retrieve aflxes gradients for NDA use
