@@ -1,15 +1,18 @@
 import numpy as np
+from mg_iterations import MG
 '''
 class used to perform eigenvalue calculations
 '''
 class Eigen(object):
-    def __init__(self):
+    def __init__(self, msh_cls):
         # TODO: address constructor errors
         self._tol = 1e-5
         self._k_tol = 1e-5
-        self.n_dof
-        self.n_grp
-        self.mg = MG()
+        # mesh
+        self._mesh = msh_cls
+        self._n_dof = self._mesh.n_node()
+        self._n_grp
+        self._mg = MG()
 
     def do_iterations(self, ho_cls, nda_cls=None):
         '''@brief Function to be called outside for eigenvalue problems
