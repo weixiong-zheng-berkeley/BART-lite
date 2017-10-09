@@ -323,8 +323,11 @@ class mat_lib():
             return data
 
     def get_per_str(self, *args, **kwargs):
-
-        return np.divide(self.get(*args, **kwargs), 4.0*np.pi)
+        try:
+            return np.divide(self.get(*args, **kwargs), 4.0*np.pi)
+        except TypeError:
+            return {k: np.divide(v, 4.0*np.pi) for k, v
+                    in self.get(*args, **kwargs).iteritems()}
 
     def props(self, mat_id=None):
         data = {}
