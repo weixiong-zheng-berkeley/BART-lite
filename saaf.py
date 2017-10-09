@@ -53,7 +53,7 @@ class SAAF(object):
         self._fiss_src = self._calculate_fiss_src(self._sflxes)
         self._fiss_src_prev
         # assistance:
-        self._mat_inds = pd(xrange(4),xrange(4))
+        self._local_dof_pairs = pd(xrange(4),xrange(4))
 
     def _generate_component_map(self):
         '''@brief Internal function used to generate mappings between component,
@@ -106,16 +106,15 @@ class SAAF(object):
             sys_mat = sps.lil_matrix((self._mesh.n_node(), self._mesh.n_node()))
             for cell in self._mesh.cells():
                 idx,mid = cell.global_idx(),cell.id()
-                for ci in xrange(4):
-                    for cj in xrange(4):
-                        sys_mat[idx[ci],idx[cj]] += lhs_mats[mid][ci][cj]
+                for ci,cj in self._local_dof_pairs:
+                    sys_mat[idx[ci],idx[cj]] += lhs_mats[mid][ci][cj]
                 #TODO: boundary part
                 if cell.bounds():
                     for bd in cell.bounds().keys():
                         if self._aq['bd_angle'][(bd,d)]>0:
                             #outgoing boundary
                             odn,bd_mass = self._aq['bd_angle'][(bd,d)],self._elem.bdmt()[bd]
-                            for ci,cj in self._mat_inds:
+                            for ci,cj in self._local_dof_pairs:
                                 if bd_mass[ci][cj]>1.0e-14:
                                     sys_mat[idx[ci],idx[cj]] += odn*bd_mass[ci][cj]
 
@@ -140,8 +139,8 @@ class SAAF(object):
                 local_fiss,fiss_xsec = np.zeros(4),self._fiss_xsecs[mid][g]
                 # get fission source contribution from ingroups
                 for gin in filter(lambda j: fiss_xsec[j]>1.0e-14, xrange(self._n_grp)):
-                    local_sflx = sflxes_prev[gin][idx]
-                    local_fiss += fiss_xsec[gin]*np.dot(self._rhs_mats[mid][(g,d)],local_sflx)
+                    sflx_vtx = sflxes_prev[gin][idx]
+                    local_fiss += fiss_xsec[gin]*np.dot(self._rhs_mats[mid][(g,d)],sflx_vtx)
                 self._fixed_rhses[cp][idx] += local_fiss
 
     def assemble_group_linear_forms(self,g):
@@ -160,8 +159,8 @@ class SAAF(object):
                 # calculate local scattering source
                 scat_bd_src = np.zeros(4)
                 for gin in filter(lambda x: sigs[g][x]>1.0e-14, xrange(self._n_grp)):
-                    local_sflx = self._sflxes[g][idx]
-                    scat_bd_src += sigs[g,gin]*np.dot(self._rhs_mats[mid][(g,d)], local_sflx)
+                    sflx_vtx = self._sflxes[g][idx]
+                    scat_bd_src += sigs[g,gin]*np.dot(self._rhs_mats[mid][(g,d)], sflx_vtx)
                 # if it's boundary
                 if cell.bounds():
                     for bd,tp in cell.bounds().items():
@@ -218,8 +217,8 @@ class SAAF(object):
             idx,mid = cell.global_idx(),cell.id()
             nusigf = self._nu_sigfs[mid]
             for g in xrange(self._n_grp):
-                local_sflx = 0.25*sum(self._sflxes[g][idx])
-                self._fiss_src += nusigf[g]*local_sflx
+                sflx_vtx = 0.25*sum(self._sflxes[g][idx])
+                self._fiss_src += nusigf[g]*sflx_vtx
 
     def calculate_sflx_diff(self, sflxes_old, g):
         '''@brief function used to generate ho scalar flux for Group g using
@@ -246,27 +245,43 @@ class SAAF(object):
         '''
         return self._keff
 
-    def get_aflxes_at_qp(self, cell, aflxes_g, g):
-        '''@brief A function used to retrieve angular fluxes for NDA use
+    def calculate_nda_cell_correction(self, g, mat_id, idx):
+        dcoef = self._mlib.get('diff_coef', mat_id=mat_id)[g]
+        # retrive grad_aflx for all directions at quadrature points
+        grad_aflxes_qp = {
+        d:self._get_grad_flxes_at_qp(self._aflxes[self._comp(g,d)][idx])
+        for d in self._n_dir
+        }
+        sflxes_qp = self._get_flxes_at_qp(self._sflxes[g][idx])
+        grad_sflx_qp = self._get_grad_flxes_at_qp(self._sflxes[g][idx])
+        # calculate correction
+        corr = {}
+        for i in len(sflxes_qp):
+            # transport current
+            tc = np.zeros(2)
+            for d in xrange(self._n_dir):
+                # NOTE: 'wt_tensor' is equal to w*OmegaOmega, a 2x2 matrix
+                tc += np.outer(
+                self._aq['wt_tensor'][d],grad_aflxes_qp[d][i]
+                )
+            # minus diffusion current
+            mdc = dcoef*grad_sflx_qp
+            # corrections
+            corr[i] = (tc+mdc)/sflxes_qp[i]
+        return corr
 
-        @param cell Cell index
-        @param aflxes_g A dictionary to be modified to fill in angular fluxes at quadrature points
-        @param g Target group
+    def _get_grad_flxes_at_qp(self, flx_vtx):
+        '''@brief A function used to retrieve flxes gradients
+
+        @param flx_vtx Flux at Vertices
+        @return flux gradients at spatial quadrature points defined in Elem class
         '''
-        for d in xrange(self._n_dir):
-            cp,idx = self._comp[(g,d)],cell.global_idx()
-            sol_at_vertices = self._aflxes[cp][idx]
-            aflxes_g[d] = self._elem.get_sol_at_qps(sol_at_vertices)
+        return self._elem.get_grad_at_qps(flx_vtx)
 
-    def get_grad_aflxes_at_qp(self, cell, grad_aflxes_g, g):
-        '''@brief A function used to retrieve aflxes gradients for NDA use
+    def _get_flxes_at_qp(self, flx_vtx):
+        '''@brief A function used to retrieve flxes
 
-        @param cell Cell index
-        @param grad_aflxes_g A dictionary to be modified to fill in gradients of
-        angular fluxes in terms of tuples at quadrature points
-        @param g Group number
+        @param flx_vtx Flux at Vertices
+        @return fluxes at spatial quadrature points defined in Elem class
         '''
-        for d in xrange(self._n_dir):
-            cp,idx = self._comp[(g,d)],cell.global_idx()
-            sol_at_vertices = self._aflxes[cp][idx]
-            grad_aflxes_g[d] = self._elem.get_grad_at_qps(sol_at_vertices)
+        return self._elem.get_sol_at_qps(flx_vtx)
