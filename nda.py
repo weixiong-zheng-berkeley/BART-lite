@@ -20,9 +20,6 @@ class NDA(object):
         self._mesh = msh_cls
         # problem type
         self._is_eigen = True
-        self._aq = aq_cls.get_aq_data()
-        # number of directions in HO
-        self._n_dir = self._aq['n_dir']
         # total number of components: keep consistency with HO
         self._n_tot = self._n_grp
         # all material
@@ -30,8 +27,12 @@ class NDA(object):
         self._sigts = self._mlib.get('sig_t')
         self._sigses = self._mlib.get('sig_s')
         self._fiss_xsecs = self._mlib.get('chi_nu_sig_f')
+        # derived material properties
+        self._ksi_ua
+        self._sigt_ua
+        self._diff_coef_ua
         # assistance object
-        self._local_dofs = pd(xrange(4),xrange(4))
+        self._local_dof_pairs = pd(xrange(4),xrange(4))
 
     def assemble_bilinear_forms(self, ho_cls=None, correction=False):
         '''@brief A function used to assemble bilinear forms of NDA for current
@@ -42,23 +43,41 @@ class NDA(object):
         diffusion
         '''
         # TODO: Boundary is assumed to be reflective so kappa will not be handled
-        lhs_mats = {}
+        if correction:
+            assert ho_cls is not None, 'ho_cls has to be filled in for correction'
+        # basic diffusion Elementary matrices
+        diff_mats = {}
+        # Elementary correction matrices
+        corx,cory,sigt,dcoef = self._elem.corx(),self._elem.cory(),0,0
         for g in xrange(self._n_grp):
-            sys_mats[g] = sps.lil_matrix((self._mesh.n_node(),self._mesh.n_node()))
+            self._sys_mats[g] = sps.lil_matrix((self._mesh.n_node(),self._mesh.n_node()))
             for mid in self._mlib.ids():
                 sigt,dcoef = self._sigts[mid][g],self._dcoefs[mid][g]
-                lhs_mats[(g,mid)] = (dcoef*streaming + sigt*mass)
+                diff_mats[(g,mid)] = (dcoef*streaming + sigt*mass)
         # loop over cells for assembly
         for cell in self._mesh.cells():
             # get global dof index and mat id
-            idx,mid = cell.id(),cell.global_idx
+            idx,mid = cell.id(),cell.global_idx()
+            # corrections for all groups in current cell
+            corr_vecs = {}
             for g in xrange(self._n_grp):
                 cor_mat = np.zeros((4,4))
-                # TODO: fill in cor_mat
+                corr_at_qp = []
+                if correction:
+                    # calculate NDA correction in HO class
+                    corr_vecs[g]=ho_cls.calculate_nda_cell_correction(
+                    g=g, mat_id=mid, idx=idx)
+                    for i in xrange(len(corr_vecs[g])):
+                        # x-component
+                        cor_mat += corr_vecs[g][i][0]*corx[i]
+                        # y-component
+                        cor_mat += corr_vecs[g][i][1]*cory[i]
                 # assemble global system
-                for ci,cj in self._local_dofs:
+                for ci,cj in self._local_dof_pairs:
                     self._sys_mats[g][idx[ci],idx[cj]]+=\
-                    lhs_mats[(g,mid)][ci,cj]+cor_mat[ci,cj]
+                    diff_mats[(g,mid)][ci,cj]+cor_mat[ci,cj]
+
+            if self._is_ua:
 
         # Transform system matrices to CSC format
         for g in xrange(self._n_grp):
@@ -77,8 +96,8 @@ class NDA(object):
             for cell in self._mesh.cells():
                 idx,mid,local_fixed = cell.global_idx(),cell.id(),np.zeros(4)
                 for gin in filter(lambda: scaled_fiss_xsec[mid][g,x]>1.0e-14,xrange(self._n_grp)):
-                    local_sflx = self._sflxes[g][idx]
-                    local_fixed += scaled_fiss_xsec[mid][g,gin]*np.dot(mass,local_sflx)
+                    sflx_vtx = self._sflxes[g][idx]
+                    local_fixed += scaled_fiss_xsec[mid][g,gin]*np.dot(mass,sflx_vtx)
                 self._fixed_rhses[g][idx] += local_fixed
 
     def assemble_group_linear_forms(self, g):
@@ -91,8 +110,8 @@ class NDA(object):
             sigs = self._sigses[mid][g,:]
             scat_src = np.zeros(4)
             for gin in filter(lambda x: sigs[x]>1.0e-14,xrange(self._n_grp)):
-                local_sflx = self._sflxes[gin][idx]
-                scat_src += sigs[gin] * np.dot(mass, local_sflx)
+                sflx_vtx = self._sflxes[gin][idx]
+                scat_src += sigs[gin] * np.dot(mass, sflx_vtx)
             self._sys_rhses[g][idx] += scat_src
 
     def assemble_ua_linear_form(self):
