@@ -16,8 +16,8 @@ class AQ(object):
         # number of directions
         self._n_dir = (sn_ord+2) * sn_ord / 2
         # dictionary for containing angular quandrature directions and weights
-        self._aq_data = {'omega':{},'wt':{},'dir_prods':{},'n_dir':self._n_dir,
-                         'bd_angle':{},'bd_vec_n':{},'refl_dir':{}}
+        self._aq_data = {'omega':{},'wt':{},'dir_prods':{},'tensor':{},
+                         'bd_angle':{},'bd_vec_n':{},'refl_dir':{},'n_dir':self._n_dir}
         # make aq data
         self._quad2d()
         # store the outward normal vectors on boundaries
@@ -50,6 +50,7 @@ class AQ(object):
                 ox, oy = (1-mu**2.)**0.5 * cos(phi), (1-mu**2.)**0.5 * sin(phi)
                 self._aq_data['omega'][ct] = np.array([ox, oy])
                 self._aq_data['wt'][ct] = w
+                self._aq_data['wt_tensor'][ct] = w*np.outer(np.array([ox, oy]),np.array([ox, oy]))
                 self._aq_data['dir_prods'][ct] = {'oxox':ox*ox,'oxoy':ox*oy,'oyoy':oy*oy}
                 ct += 1
         assert ct==self._n_dir, "number of total directions are wrong"
