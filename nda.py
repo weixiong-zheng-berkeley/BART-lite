@@ -1,128 +1,183 @@
 import numpy as np
-import scipy.sparse as sps
+from scipy import sparse as sps, sparse.linalg as sla
+from itertools import product as pd
+import np.linalg.norm as norm
+from elem import *
 
 class NDA(object):
-  def __init__(self):
+    def __init__(self, mat_lib, msh_cls, is_ua=False):
+        # mesh data
+        self._mesh = mesh_cls
+        self._cell_length = mesh_cls.cell_length()
+        # preassembly-interpolation data
+        self._elem = Elem(self._cell_length)
+        # material lib and map
+        self._mlib = mat_lib
+        self._n_grp = self._mlib.get('n_groups')
+        self._g_thr = self._mlib.get('g_thermal')
+        # mesh
+        self._mesh = msh_cls
+        # problem type
+        # TODO: modify problem type read-in
+        self._is_eigen = True
+        self._is_ua = is_ua
+        # total number of components: keep consistency with HO
+        self._n_tot = self._n_grp
+        # all material
+        self._dcoefs = self._mlib.get('diff_coef')
+        self._sigts = self._mlib.get('sig_t')
+        self._sigses = self._mlib.get('sig_s')
+        self._fiss_xsecs = self._mlib.get('chi_nu_sig_f')
+        # derived material properties
+        self._ksi_ua = self._mlib.get('ksi_ua')
+        self._sigt_ua = self._mlib.get('sigt_ua')
+        self._diff_coef_ua = self._mlib.get('diff_coef_ua')
+        # assistance object
+        self._local_dof_pairs = pd(xrange(4),xrange(4))
 
-  def assemble_bilinear_forms(self):
-    A = sps.lil_matrix((nodes, nodes))
-    B = sps.lil_matrix((nodes, nodes))
-    C = sps.lil_matrix((nodes, nodes))
+    def assemble_bilinear_forms(self, ho_cls=None, correction=False):
+        '''@brief A function used to assemble bilinear forms of NDA for current
+        iterations
 
-    # TODO: Retrieve cross-sections for cell
-    sigt = 1
-    D = 1/(3*sigt)
-    siga = 1
-    sigf = 1
-    nu = 1
-      
-    # TODO: Calculate previous flux
-    flux_prev = 1 
-        
-    # TODO: Calculate kappa
-    kappa = 1
-        
-    # TODO: Calculate j
-    j = 1
+        @param correction A boolean used to determine if correction terms are
+        assembled. By default, it's not. In this case, the bilinear form is typical
+        diffusion
+        '''
+        # TODO: Boundary is assumed to be reflective so kappa will not be handled
+        if correction:
+            assert ho_cls is not None, 'ho_cls has to be filled in for correction'
+        # basic diffusion Elementary matrices
+        diff_mats = {}
+        # Elementary correction matrices
+        corx,cory,sigt,dcoef = self._elem.corx(),self._elem.cory(),0,0
+        for g in xrange(self._n_grp):
+            self._sys_mats[g] = sps.lil_matrix((self._mesh.n_node(),self._mesh.n_node()))
+            for mid in self._mlib.ids():
+                sigt,dcoef = self._sigts[mid][g],self._dcoefs[mid][g]
+                diff_mats[(g,mid)] = (dcoef*streaming + sigt*mass)
+        # loop over cells for assembly
+        for cell in self._mesh.cells():
+            # get global dof index and mat id
+            idx,mid = cell.id(),cell.global_idx()
+            # corrections for all groups in current cell
+            corr_vecs = {}
+            for g in xrange(self._n_grp):
+                cor_mat = np.zeros((4,4))
+                if correction:
+                    # calculate NDA correction in HO class
+                    corr_vecs[g]=ho_cls.calculate_nda_cell_correction(
+                    g=g, mat_id=mid, idx=idx)
+                    for i in xrange(len(corr_vecs[g])):
+                        # x-component
+                        cor_mat += corr_vecs[g][i][0]*corx[i]
+                        # y-component
+                        cor_mat += corr_vecs[g][i][1]*cory[i]
+                # assemble global system
+                for ci,cj in self._local_dof_pairs:
+                    self._sys_mats[g][idx[ci],idx[cj]]+=\
+                    diff_mats[(g,mid)][ci,cj]+cor_mat[ci,cj]
+            # TODO: calculate collapse correction
+            if self._is_ua:
 
-    # Find Local Basis Functions
-    # Set up Vandermonde Matrix
-    V = np.array([[1, 0, 0, 0],
-                  [1, 0, h, 0],
-                  [1, h, 0, 0],
-                  [1, h, h, h**2]])
-    C = np.linalg.inv(V)
-        
-    # Assemble Elementary Matrix
-    # A_ab = area(partial_ax*partial_bx + partial_ay*partial_by)
-    area = h**2
-    perimeter = 4*h
-    elem_A = np.zeros((4, 4))
-    elem_B = np.zeros((4, 4))
-    elem_C = np.zeros((4, 4))
+        # Transform system matrices to CSC format
+        for g in xrange(self._n_grp):
+            self._sys_mats[g] = sps.csc_matrix(sys_mats[g])
+        if self._is_ua:
+            self._sys_mats['ua'] = sps.csc_matrix(sys_mats['ua'])
 
-    for ii in range(4):
-        for jj in range(4):
-            partial_ax = C[1, ii]+C[3, ii]*V[ii, 2]
-            partial_bx = C[1, jj]+C[3, jj]*V[jj, 2]
-            partial_ay = C[2, ii]+C[3, ii]*V[ii, 1]
-            partial_by = C[2, jj]+C[3, jj]*V[jj, 1]
-            grad_ab = partial_ax*partial_bx + partial_ay*partial_by
-            elem_A[ii,jj] = D*area*grad_ab
-            elem_B[ii, jj] = driftVec*area*(partial_bx + partial_by)
-            elem_D[ii,jj] = .5*kappa*perimeter
-   
-    # Assemble Global Matrix
-    for cell in range(n):
-      cell_i = cell//int(np.sqrt(n))
-      cell_j = cell%int(np.sqrt(n))
+    def assemble_fixed_linear_forms(self, sflxes_prev=None):
+        '''@brief  function used to assemble linear form for fixed source or fission
+        source
+        '''
+        # scale the fission xsec by keff
+        scaled_fiss_xsec = {k:v/self._keff for k,v in self._fiss_xsecs}
+        for g in xrange(self._n_grp):
+            fixed_rhses[g] = np.array(self._mesh.n_node())
+            for cell in self._mesh.cells():
+                idx,mid,local_fixed = cell.global_idx(),cell.id(),np.zeros(4)
+                for gin in filter(lambda: scaled_fiss_xsec[mid][g,x]>1.0e-14,xrange(self._n_grp)):
+                    sflx_vtx = self._sflxes[g][idx]
+                    local_fixed += scaled_fiss_xsec[mid][g,gin]*np.dot(mass,sflx_vtx)
+                self._fixed_rhses[g][idx] += local_fixed
 
-      # Global to Local node mapping
-      """Nodes are flattened by row with row x=0 going first.
-      That means node x0,y0 in cell0 has a global index of 0
-      and node x1,y1 in cell0 has a global index of nodes_x+1"""
-      mapping = np.array([cell+cell_i, cell+cell_i+1, 
-                            cell+cell_i+n_x+1, cell+cell_i+n_x+2])
-      xx = 0
-      for ii in mapping:
-        yy = 0
-        for jj in mapping:
-          A[ii, jj] += elem_A[xx, yy]
-          B[ii, jj] += elem_B[xx, yy]
-          C[ii, jj] += elem_C[xx, yy]
-          yy += 1
-        xx += 1
-    LHS = A + B + C
-    return sps.csc_matrix(LHS)
+    def assemble_group_linear_forms(self, g):
+        '''@brief A function used to assemble linear form for upscattering acceleration
+        '''
+        # assign fixed source to rhs
+        self._sys_rhses[g] = fixed_rhses[g]
+        for cell in mesh.cells:
+            idx,mid = cell.global_idx(),cell.id()
+            sigs = self._sigses[mid][g,:]
+            scat_src = np.zeros(4)
+            for gin in filter(lambda x: sigs[x]>1.0e-14,xrange(self._n_grp)):
+                sflx_vtx = self._sflxes[gin][idx]
+                scat_src += sigs[gin] * np.dot(mass, sflx_vtx)
+            self._sys_rhses[g][idx] += scat_src
 
-  def assemble_fixed_linear_forms(self):
-    f = sps.lil_matrix((nodes, 1))
-    q = sps.lil_matrix((nodes, 1))
-    j = sps.lil_matrix((nodes, 1))
+    def assemble_ua_linear_form(self):
+        '''@brief A function used to assemble linear form for upscattering acceleration
+        '''
+        #TODO: fill in this function and put the rhs in _sys_rhses['ua']
 
-    # TODO: Retrieve cross-sections for cell
-    sigf = 1
-    nu = 1
-        
-    # TODO: Calculate previous flux
-    flux_prev = 1 
-        
-        
-    # TODO: Calculate j
-    j = 1
+    def solve_in_group(self,g):
+        assert 0<=g<self._n_grp, 'Group index out of range'
+        if g not in self._lu:
+            # factorize it if not yet
+            self._lu[g] = sla.splu(self._sys_mats[g])
+        # direct solve
+        self._sflxes[g] = self._lu[g].solve(self._sys_rhses[g])
 
-    # Assemble LHS
-    area = h**2
-    perimeter = 4*h
-    elem_f = np.zeros(4)
-    elem_q = np.zeros(4)
-    elem_j = np.zeros(4)
+    #NOTE: this function has to be removed if abstract class is implemented
+    def calculate_keff_err(self):
+        assert not self._is_eigen, 'only be called in eigenvalue problems'
+        # update the previous fission source and previous keff
+        self._fiss_src_prev,self._keff_prev = self._fiss_src,self._keff
+        # calculate the new fission source
+        self._calculate_fiss_src()
+        # calculate the new keff
+        self._keff = self._keff_prev * self._fiss_src / self._fiss_src_prev
+        return abs(self._keff-self._keff_prev)/abs(self._keff)
 
-    for ii in range(4):
-      elem_f[ii] = nu*sigf*flux_prev*area
-      elem_q[ii] = q*area
-      elem_j[ii] = 2*j*perimeter
+    #NOTE: this function has to be removed if abstract class is implemented
+    def calculate_sflx_diff(self, sflxes_old, g):
+        '''@brief function used to generate ho scalar flux for Group g using
+        angular fluxes
 
-    for cell in range(n):
-      cell_i = cell//int(np.sqrt(n))
-      cell_j = cell%int(np.sqrt(n))
+        @param sflx_old Scalar flux from previous generation
+        @param g The group index
+        @return double The relative difference between new and old scalar flux
+        '''
+        # return the l1 norm relative difference
+        return norm((self._sflxes[g]-sflxes_old[g]),1) / norm(self._sflxes[g],1)
 
-      # Global to Local node mapping
-      """Nodes are flattened by row with row x=0 going first.
-      That means node x0,y0 in cell0 has a global index of 0
-      and node x1,y1 in cell0 has a global index of nodes_x+1"""
-      mapping = np.array([cell+cell_i, cell+cell_i+1, 
-                            cell+cell_i+n_x+1, cell+cell_i+n_x+2])
-      xx = 0
-      for ii in mapping:
-        yy = 0
-        for jj in mapping:
-          f[ii, 0] += elem_b[xx]
-          q[ii, 0] += elem_b[xx]
-          j[ii, 0] += elem_b[xx]
-          yy += 1
-        xx += 1
+    #NOTE: this function has to be removed if abstract class is implemented
+    def update_sflxes(self, sflxes_old, g):
+        '''@brief A function used to update scalar flux for group g
 
-    RHS = f + q + j
-    return sps.csc_matrix(RHS)
+        @param sflxes_old A dictionary
+        @param g Group index
+        '''
+        sflxes_old[g] = self._sflxes[g]
 
+    def update_ua(self):
+        '''@brief A function used to update the scalar fluxes after upscattering
+        acceleration
+        '''
+        for g in xrange(self.g_thr,self._n_grp):
+            self._sflxes[g] += self._sflxes['ua']
+
+    def clear_factorization(self):
+        '''@brief A function used to clear all the factorizations after NDA is dictionaries
+        for current iteration
+
+        Every outer iterations, NDA equations are modified so previous factorizations
+        are no longer suitable and must be cleared and redone.
+        '''
+        self._lu.clear()
+
+    def solve_ua(self):
+        if 'ua' not in self._lu:
+            # factorize it if not yet
+            self._lu['ua'] = sla.splu(self._sys_mats['ua'])
+        # direct solve
+        self._sflxes['ua'] = self._lu['ua'].solve(self._sys_rhses['ua'])
