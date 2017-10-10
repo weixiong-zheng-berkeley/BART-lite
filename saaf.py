@@ -5,7 +5,7 @@ import np.linalg.norm as norm
 from elem import Elem
 
 class SAAF(object):
-    def __init__(self, mat_cls, aq_cls, msh_cls):
+    def __init__(self, mat_lib, msh_cls, aq_cls):
         # mesh data
         self._mesh = mesh_cls
         self._cell_length = mesh_cls.cell_length()
