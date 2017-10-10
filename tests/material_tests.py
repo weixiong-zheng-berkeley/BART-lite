@@ -109,6 +109,10 @@ class TestFunctionality:
         ok_(np.array_equal(self.testmat.get('sig_r'),
                            np.array([160.0, 270.0])),
             ".get('sig_r') should return the correct value")
+
+    def test_sig_r_ua_value(self):
+        """ Calculated sig_r_ua should be correct value """
+        ok_(np.allclose(self.test3gmat.derived['sig_r_ua'], 158.8241176))
         
     ## TEST ERRORS ===================================================
 

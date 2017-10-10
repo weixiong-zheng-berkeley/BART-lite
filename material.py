@@ -98,6 +98,14 @@ class _mat():
         diff_coef_ua = np.dot(self.derived['ksi_ua'],
                               self.derived['diff_coef'][i:])
 
+        try:
+            sig_r_ua = sig_t_ua - \
+                       np.sum(np.multiply(self.derived['ksi_ua'],
+                                          self.xsec['sig_s'][i:,i:]))
+            self.derived.update({'sig_r_ua': sig_r_ua})
+        except KeyError:
+            pass
+
         self.derived.update({'sig_t_ua': sig_t_ua})
         self.derived.update({'diff_coef_ua': diff_coef_ua})
 
