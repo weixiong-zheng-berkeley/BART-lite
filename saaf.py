@@ -6,6 +6,8 @@ from elem import Elem
 
 class SAAF(object):
     def __init__(self, mat_lib, msh_cls, aq_cls):
+        # name of the Equation
+        self._name = 'saaf'
         # mesh data
         self._mesh = mesh_cls
         self._cell_length = mesh_cls.cell_length()
@@ -78,6 +80,9 @@ class SAAF(object):
                     # mass part of rhs
                     rhs_mat += mass
                     self._rhs_mats[mid] = {(g,d):rhs_mat}
+
+    def name(self):
+        return self._name
 
     def assemble_bilinear_forms(self):
         '''@brief Function used to assemble bilinear forms

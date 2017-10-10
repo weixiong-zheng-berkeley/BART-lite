@@ -6,6 +6,8 @@ from elem import *
 
 class NDA(object):
     def __init__(self, mat_lib, msh_cls, is_ua=False):
+        # equation name
+        self._name = 'nda'
         # mesh data
         self._mesh = mesh_cls
         self._cell_length = mesh_cls.cell_length()
@@ -35,6 +37,9 @@ class NDA(object):
         self._dcoefs_ua = self._mlib.get('diff_coef_ua')
         # assistance object
         self._local_dof_pairs = pd(xrange(4),xrange(4))
+
+    def name(self):
+        return self._name
 
     def assemble_bilinear_forms(self, ho_cls=None, correction=False):
         '''@brief A function used to assemble bilinear forms of NDA for current
