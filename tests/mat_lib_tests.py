@@ -39,7 +39,7 @@ class TestFunctionality:
     def test_get(self):
         """ get should return a dictionary with all materials """
         ok_(np.array_equal(self.lib.get('sig_t')['test_mat'],
-                   np.array([20.0, 30.0])))
+                   np.array([200.0, 300.0])))
         ok_(np.array_equal(self.lib.get('sig_t')['test_mat2'],
                    np.array([10.0, 20.0])))
 
@@ -47,12 +47,12 @@ class TestFunctionality:
         """ get_per_str should return correct values """
         ok_(np.allclose(self.lib.get_per_str('sig_t', mat_id =
                                              'test_mat'),
-                        np.array([1.591549431, 2.387324146])))
+                        np.array([15.91549431, 23.87324146])))
 
     def test_get_id(self):
         """ providing an id and a prop returns the array for that mat """
         ok_(np.array_equal(self.lib.get('sig_t', mat_id='test_mat'),
-                           np.array([20.0, 30.0])))
+                           np.array([200.0, 300.0])))
 
     def test_get_n_grps(self):
         """ Getting number of groups should return the correct value """

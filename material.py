@@ -41,9 +41,13 @@ class _mat():
         self.__parse_XML__(filename, grps)  # Parse input XML file
         self.__validate__(filename)         # Validate material data
 
-        if 'sig_s' in self.xsec and tr_scatt:
+        # If needed, transpose scattering matrix
+        if 'sig_s' in self.xsec and tr_scatt: 
             self.xsec['sig_s'] = np.transpose(self.xsec['sig_s'])
 
+        if self.xsec:
+            self.__derive_xsec__()          # Calc other xsecs
+            
         if 'sig_t' in self.xsec:
             self.__derive_sig_t__()         # Calc sig_t derv. prop
 
@@ -94,6 +98,14 @@ class _mat():
         diff_coef_ua = np.dot(self.derived['ksi_ua'],
                               self.derived['diff_coef'][i:])
 
+        try:
+            sig_r_ua = sig_t_ua - \
+                       np.sum(np.multiply(self.derived['ksi_ua'],
+                                          self.xsec['sig_s'][i:,i:]))
+            self.derived.update({'sig_r_ua': sig_r_ua})
+        except KeyError:
+            pass
+
         self.derived.update({'sig_t_ua': sig_t_ua})
         self.derived.update({'diff_coef_ua': diff_coef_ua})
 
@@ -135,8 +147,27 @@ class _mat():
 
         # Slice scattering matrix based on g_thermal
         thermal = self.xsec['sig_s'][i:, i:]
-        self.derived.update({'ksi_ua': np.linalg.eigvals(thermal)})
+        th_d_i  = np.tril(thermal)
+        th_u    = np.triu(thermal, 1)
+        
+        total   = np.diag(self.xsec['sig_t'][i:])
+        try:
+            M = np.matmul(np.linalg.inv(total - th_d_i), th_u)
+            w,v = np.linalg.eig(M)
+            ksi_ua = v[:, np.argmax(np.absolute(w))]
+            ksi_ua = ksi_ua/np.sum(ksi_ua)
+        except np.linalg.LinAlgError:
+            warnings.warn("Matrix for thermal eigenvalue is singular," +
+                          "setting value of ksi_ua to 0")
+            ksi_ua = np.zeros(self.n_grps - i)
+        
+        self.derived.update({'ksi_ua': ksi_ua})
 
+    def __derive_xsec__(self):
+        if 'sig_t' in self.xsec and 'sig_s' in self.xsec:
+            sig_r = self.xsec['sig_t'] - np.diag(self.xsec['sig_s'])
+            self.xsec.update({'sig_r': sig_r })
+        
     def __parse_XML__(self, filename, grps):
         # Parse the XML file
 

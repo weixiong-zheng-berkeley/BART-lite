@@ -33,7 +33,7 @@ class TestFunctionality:
     def test_mat_xsec(self):
         """ Reading a file should save the correct xsec values """
         ok_(type(self.testmat.xsec['sig_t']) == np.ndarray, "Cross-section should be a numpy array")
-        ok_(np.all(self.testmat.xsec['sig_t'] == [20.0, 30.0]), "Cross-sections should have correct values")
+        ok_(np.all(self.testmat.xsec['sig_t'] == [200.0, 300.0]), "Cross-sections should have correct values")
 
 
     def test_mat_gconst(self):
@@ -60,7 +60,7 @@ class TestFunctionality:
     def test_mat_calc_inv_sigt(self):
         """ Calculated inv_sigt should be correct or 0 if no sig_t or equals 0"""
         ok_(np.allclose(self.testmat.derived['inv_sig_t'],
-                        np.array([0.05, 0.03333333])),
+                        np.array([0.005, 0.003333333])),
             "Inverse Sig_t should calculate the correct value")
         
         ok_(np.allclose(self.testZXmat.derived['inv_sig_t'],
@@ -70,7 +70,7 @@ class TestFunctionality:
     def test_mat_calc_diff_coeff(self):
         """ Calculated diff coef should be correct or 0 if no sig_t or equals 0"""
         ok_(np.allclose(self.testmat.derived['diff_coef'],
-                        np.array([0.016666667, 0.011111111])),
+                        np.array([0.0016666667, 0.0011111111])),
             "Diff Coef should calculate the correct val")
         
         ok_(np.allclose(self.testZXmat.derived['diff_coef'],
@@ -90,26 +90,30 @@ class TestFunctionality:
 
     def test_mat_calc_ksi_ua(self):
         """ Calculated thermal eigenvalue should be correct """
-        ok_(np.array_equal(self.testmat.derived['ksi_ua'],
-                           np.array([50.0, 20.0])))
-        ok_(np.array_equal(self.test3gmat.derived['ksi_ua'],
-                           np.array([50.0, 20.0])))
+        ok_(np.allclose(self.test3gmat.derived['ksi_ua'],
+                           np.array([0.93103448, 0.06896552])))
 
 
     def test_aceleration_properties(self):
         """ Calculated aceleration properties should be correct """
-        ok_(self.testmat.derived['sig_t_ua'] == 1600,
-            "Sig_t_ua test_mat, incorrect value")
-        ok_(self.test3gmat.derived['sig_t_ua'] == 1600,
+        ok_(np.allclose(self.test3gmat.derived['sig_t_ua'], 206.8965464),
             "Sig_t_ua test3gmat, incorrect value")
-        ok_(np.allclose(self.testmat.derived['diff_coef_ua'],
-                        1.05555555556),
-            "Diff_coef_ua, test_mat, incorrect value")
         ok_(np.allclose(self.test3gmat.derived['diff_coef_ua'],
-                                1.05555555556),
-            "Diff_coef_ua, test_mat, incorrect value")
+                                0.001628352426751656),
+            "Diff_coef_ua, test_mat3, incorrect value")
         
+    def test_sig_r_value(self):
+        """ Calculated sig_r should be correct type and value """
+        ok_(isinstance(self.testmat.get('sig_r'), np.ndarray),
+            ".get('sig_r') should return an array")
+        ok_(np.array_equal(self.testmat.get('sig_r'),
+                           np.array([160.0, 270.0])),
+            ".get('sig_r') should return the correct value")
 
+    def test_sig_r_ua_value(self):
+        """ Calculated sig_r_ua should be correct value """
+        ok_(np.allclose(self.test3gmat.derived['sig_r_ua'], 148.27585677650282))
+        
     ## TEST ERRORS ===================================================
 
     @raises(RuntimeError)
