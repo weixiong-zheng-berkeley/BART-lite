@@ -135,7 +135,20 @@ class _mat():
 
         # Slice scattering matrix based on g_thermal
         thermal = self.xsec['sig_s'][i:, i:]
-        self.derived.update({'ksi_ua': np.linalg.eigvals(thermal)})
+        th_d_i  = np.tril(thermal)
+        th_u    = np.triu(thermal, 1)
+        
+        total   = np.diag(self.xsec['sig_t'][i:])
+        try:
+            M = np.matmul(np.linalg.inv(total - th_d_i), th_u)
+            w,v = np.linalg.eig(M)
+            ksi_ua = v[:, np.argmax(np.absolute(w))]
+        except np.linalg.LinAlgError:
+            warnings.warn("Matrix for thermal eigenvalue is singular," +
+                          "setting value of ksi_ua to 0")
+            ksi_ua = np.zeros(self.n_grps - i)
+        
+        self.derived.update({'ksi_ua': ksi_ua})
 
     def __parse_XML__(self, filename, grps):
         # Parse the XML file

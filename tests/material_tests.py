@@ -90,20 +90,17 @@ class TestFunctionality:
 
     def test_mat_calc_ksi_ua(self):
         """ Calculated thermal eigenvalue should be correct """
-        ok_(np.array_equal(self.test3gmat.derived['ksi_ua'],
-                           np.array([27.0/2.0, 1.0])))
+        ok_(np.allclose(self.test3gmat.derived['ksi_ua'],
+                           np.array([0.99726775, 0.073871686])))
 
 
     def test_aceleration_properties(self):
         """ Calculated aceleration properties should be correct """
-        ok_(self.test3gmat.derived['sig_t_ua'] == 570,
+        ok_(np.allclose(self.test3gmat.derived['sig_t_ua'], 221.61505),
             "Sig_t_ua test3gmat, incorrect value")
-        ok_(np.allclose(self.testmat.derived['diff_coef_ua'],
-                        1.05555555556),
-            "Diff_coef_ua, test_mat, incorrect value")
         ok_(np.allclose(self.test3gmat.derived['diff_coef_ua'],
-                                0.2361),
-            "Diff_coef_ua, test_mat, incorrect value")
+                                0.0017441925),
+            "Diff_coef_ua, test_mat3, incorrect value")
         
 
     ## TEST ERRORS ===================================================
