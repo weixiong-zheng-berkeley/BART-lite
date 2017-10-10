@@ -46,15 +46,15 @@ class TestFunctionality:
     def test_final_map_x_y(self):
         """ Final map should return the correct values """
         ok_(np.array_equal(self.testmap.get('sig_t',(3,1.5)),
-                           np.array([20, 30])))
+                           np.array([200, 300])))
         ok_(np.array_equal(self.testmap.get('sig_t',(9,1.5)),
-                           np.array([20, 30])))
+                           np.array([200, 300])))
         ok_(np.array_equal(self.testmap.get('sig_t',(1.5,3)),
-                           np.array([20, 30])))
+                           np.array([200, 300])))
         ok_(np.array_equal(self.testmap.get('sig_t',(1.5,9)),
-                           np.array([20, 30])))
+                           np.array([200, 300])))
         ok_(np.array_equal(self.testmap.get('sig_t',(9,9)),
-                           np.array([20, 30])))
+                           np.array([200, 300])))
         ok_(np.array_equal(self.testmap.get('sig_t',(3,3)),
                            np.array([10, 20])))
         ok_(np.array_equal(self.testmap.get('sig_t',(3,6)),
@@ -67,15 +67,15 @@ class TestFunctionality:
     def test_final_map_k(self):
         """ Final map should return the correct values """
         ok_(np.array_equal(self.testmap.get('sig_t',25),
-                           np.array([20, 30])),'k=25')
+                           np.array([200, 300])),'k=25')
         ok_(np.array_equal(self.testmap.get('sig_t',80),
-                           np.array([20, 30])),'k=80')
+                           np.array([200, 300])),'k=80')
         ok_(np.array_equal(self.testmap.get('sig_t',350),
-                           np.array([20, 30])),'k=350')
+                           np.array([200, 300])),'k=350')
         ok_(np.array_equal(self.testmap.get('sig_t',120),
-                           np.array([20, 30])), 'k=120')
+                           np.array([200, 300])), 'k=120')
         ok_(np.array_equal(self.testmap.get('sig_t',195),
-                           np.array([20, 30])), 'k=195')
+                           np.array([200, 300])), 'k=195')
         ok_(np.array_equal(self.testmap.get('sig_t',130),
                            np.array([10, 20])), 'k=130')
         ok_(np.array_equal(self.testmap.get('sig_t',134),

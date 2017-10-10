@@ -33,7 +33,7 @@ class TestFunctionality:
     def test_mat_xsec(self):
         """ Reading a file should save the correct xsec values """
         ok_(type(self.testmat.xsec['sig_t']) == np.ndarray, "Cross-section should be a numpy array")
-        ok_(np.all(self.testmat.xsec['sig_t'] == [20.0, 30.0]), "Cross-sections should have correct values")
+        ok_(np.all(self.testmat.xsec['sig_t'] == [200.0, 300.0]), "Cross-sections should have correct values")
 
 
     def test_mat_gconst(self):
@@ -60,7 +60,7 @@ class TestFunctionality:
     def test_mat_calc_inv_sigt(self):
         """ Calculated inv_sigt should be correct or 0 if no sig_t or equals 0"""
         ok_(np.allclose(self.testmat.derived['inv_sig_t'],
-                        np.array([0.05, 0.03333333])),
+                        np.array([0.005, 0.003333333])),
             "Inverse Sig_t should calculate the correct value")
         
         ok_(np.allclose(self.testZXmat.derived['inv_sig_t'],
@@ -70,7 +70,7 @@ class TestFunctionality:
     def test_mat_calc_diff_coeff(self):
         """ Calculated diff coef should be correct or 0 if no sig_t or equals 0"""
         ok_(np.allclose(self.testmat.derived['diff_coef'],
-                        np.array([0.016666667, 0.011111111])),
+                        np.array([0.0016666667, 0.0011111111])),
             "Diff Coef should calculate the correct val")
         
         ok_(np.allclose(self.testZXmat.derived['diff_coef'],
