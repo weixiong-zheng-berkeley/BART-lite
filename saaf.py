@@ -247,6 +247,7 @@ class SAAF(object):
 
     def calculate_nda_cell_correction(self, g, mat_id, idx):
         dcoef = self._mlib.get('diff_coef', mat_id=mat_id)[g]
+        isgit = self._mlib.get('inv_sig_t', mat_id=mat_id)[g]
         # retrive grad_aflx for all directions at quadrature points
         grad_aflxes_qp = {
         d:self._get_grad_flxes_at_qp(self._aflxes[self._comp(g,d)][idx])
@@ -261,13 +262,11 @@ class SAAF(object):
             tc = np.zeros(2)
             for d in xrange(self._n_dir):
                 # NOTE: 'wt_tensor' is equal to w*OmegaOmega, a 2x2 matrix
-                tc += np.outer(
-                self._aq['wt_tensor'][d],grad_aflxes_qp[d][i]
-                )
+                tc += np.dot(self._aq['wt_tensor'][d],grad_aflxes_qp[d][i])
             # minus diffusion current
             mdc = dcoef*grad_sflx_qp
             # corrections
-            corr[i] = (tc+mdc)/sflxes_qp[i]
+            corr[i] = (isgit*tc+mdc)/sflxes_qp[i]
         return corr
 
     def _get_grad_flxes_at_qp(self, flx_vtx):
