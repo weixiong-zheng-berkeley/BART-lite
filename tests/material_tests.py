@@ -102,7 +102,14 @@ class TestFunctionality:
                                 0.0017441925),
             "Diff_coef_ua, test_mat3, incorrect value")
         
-
+    def test_sig_r_value(self):
+        """ Calculated sig_r should be correct type and value """
+        ok_(isinstance(self.testmat.get('sig_r'), np.ndarray),
+            ".get('sig_r') should return an array")
+        ok_(np.array_equal(self.testmat.get('sig_r'),
+                           np.array([160.0, 270.0])),
+            ".get('sig_r') should return the correct value")
+        
     ## TEST ERRORS ===================================================
 
     @raises(RuntimeError)

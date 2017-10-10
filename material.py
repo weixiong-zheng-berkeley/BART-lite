@@ -41,9 +41,13 @@ class _mat():
         self.__parse_XML__(filename, grps)  # Parse input XML file
         self.__validate__(filename)         # Validate material data
 
-        if 'sig_s' in self.xsec and tr_scatt:
+        # If needed, transpose scattering matrix
+        if 'sig_s' in self.xsec and tr_scatt: 
             self.xsec['sig_s'] = np.transpose(self.xsec['sig_s'])
 
+        if self.xsec:
+            self.__derive_xsec__()          # Calc other xsecs
+            
         if 'sig_t' in self.xsec:
             self.__derive_sig_t__()         # Calc sig_t derv. prop
 
@@ -150,6 +154,11 @@ class _mat():
         
         self.derived.update({'ksi_ua': ksi_ua})
 
+    def __derive_xsec__(self):
+        if 'sig_t' in self.xsec and 'sig_s' in self.xsec:
+            sig_r = self.xsec['sig_t'] - np.diag(self.xsec['sig_s'])
+            self.xsec.update({'sig_r': sig_r })
+        
     def __parse_XML__(self, filename, grps):
         # Parse the XML file
 
