@@ -155,6 +155,7 @@ class _mat():
             M = np.matmul(np.linalg.inv(total - th_d_i), th_u)
             w,v = np.linalg.eig(M)
             ksi_ua = v[:, np.argmax(np.absolute(w))]
+            ksi_ua = ksi_ua/np.sum(ksi_ua)
         except np.linalg.LinAlgError:
             warnings.warn("Matrix for thermal eigenvalue is singular," +
                           "setting value of ksi_ua to 0")
