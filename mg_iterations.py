@@ -20,7 +20,11 @@ class MG(object):
         '''
         if not nda_cls:
             # NDA is not used in this calse
+            # assemble matrices
+            ho_cls.assemble_bilinear_forms()
+            # assemble fixed source
             ho_cls.assemble_fixed_linear_forms()
+            # multigroup calculations
             self.mg_iterations(ho_cls)
         else:
             # TODO: add NDA for fixed source problem without fission source
@@ -41,13 +45,21 @@ class MG(object):
         # Solve for thermal groups
         e,sflxes_old_mg = 1.0,{}
         while e>self._tol:
-            e = self._tol * 0.1
             for g in xrange(self._g_thr, self._n_grp):
+                # update old mg flux
+                equ_cls.update_sflxes(sflxes_old_mg,g)
+                # assemble rhs for group g
                 equ_cls.assemble_group_linear_forms(g)
                 # update old flux and solve in group
                 equ_cls.solve_in_group(sflxes_old_mg,g)
                 # calculate mg iteration error for group g
-            if equ_cls.equ_name()=='nda' and self._is_ua:
-                equ_cls.solve_ua ()
+            if equ_cls.name()=='nda' and self._is_ua:
+                # assemble rhs for upscattering acceleration
+                equ_cls.assemble_ua_linear_form (sflxes_old_mg)
+                # solve ua equation
+                equ_cls.solve_ua()
+                # update nda sflx after upscattering acceleration
+                equ_cls.update_ua()
+            # calculate iteration errors in multigroup iterations
             e = max(equ_cls.calculate_sflx_diff(sflxes_old_mg,g)
                     for g in xrange(self._g_thr,self._n_grp))
