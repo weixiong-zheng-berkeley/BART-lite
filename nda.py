@@ -27,11 +27,12 @@ class NDA(object):
         self._dcoefs = self._mlib.get('diff_coef')
         self._sigts = self._mlib.get('sig_t')
         self._sigses = self._mlib.get('sig_s')
+        self._sigrs = self._mlib.get('sig_r')
         self._fiss_xsecs = self._mlib.get('chi_nu_sig_f')
         # derived material properties
         self._ksi_ua = self._mlib.get('ksi_ua')
-        self._sigt_ua = self._mlib.get('sigt_ua')
-        self._diff_coef_ua = self._mlib.get('diff_coef_ua')
+        self._sigrs_ua = self._mlib.get('sig_r_ua')
+        self._dcoefs_ua = self._mlib.get('diff_coef_ua')
         # assistance object
         self._local_dof_pairs = pd(xrange(4),xrange(4))
 
@@ -44,8 +45,9 @@ class NDA(object):
         diffusion
         '''
         # TODO: Boundary is assumed to be reflective so kappa will not be handled
+        streaming,mass = self._elem.streaming(),self._elem.mass()
         if correction:
-            assert ho_cls is not None, 'ho_cls has to be filled in for correction'
+            assert ho_cls is not None, 'ho_cls has to be filled in for NDA correction'
         # basic diffusion Elementary matrices
         diff_mats = {}
         # Elementary correction matrices
@@ -53,15 +55,23 @@ class NDA(object):
         for g in xrange(self._n_grp):
             self._sys_mats[g] = sps.lil_matrix((self._mesh.n_node(),self._mesh.n_node()))
             for mid in self._mlib.ids():
-                sigt,dcoef = self._sigts[mid][g],self._dcoefs[mid][g]
-                diff_mats[(g,mid)] = (dcoef*streaming + sigt*mass)
+                sigt,sigr,dcoef = self._sigts[mid][g],self._sigrs[mid][g],self._dcoefs[mid][g]
+                diff_mats[(g,mid)] = (dcoef*streaming + sigr*mass)
+        # preassembled matrices for upscattering acceleration
+        if self._is_ua:
+            self._sys_mats['ua'] = sps.lil_matrix((self._mesh.n_node(),self._mesh.n_node()))
+            for mid in self._mlib.ids():
+                dcoef_ua,sigr_ua = self._dcoefs_ua[mid],self._sigrs_ua[mid]
+                # basic elementary diffusion matrices for upscattering acceleration
+                diff_mats[('ua',mid)] = (dcoef_ua*streaming + sigr_ua*mass)
         # loop over cells for assembly
         for cell in self._mesh.cells():
             # get global dof index and mat id
             idx,mid = cell.id(),cell.global_idx()
-            # corrections for all groups in current cell
-            corr_vecs = {}
+            # corrections for all groups in current cell and ua
+            corr_vecs,corx_ua,cory_ua = {},{},{}
             for g in xrange(self._n_grp):
+                # if correction is asked
                 cor_mat = np.zeros((4,4))
                 if correction:
                     # calculate NDA correction in HO class
@@ -76,14 +86,34 @@ class NDA(object):
                 for ci,cj in self._local_dof_pairs:
                     self._sys_mats[g][idx[ci],idx[cj]]+=\
                     diff_mats[(g,mid)][ci,cj]+cor_mat[ci,cj]
-            # TODO: calculate collapse correction
+
+            # if we do upscattering acceleration
             if self._is_ua:
+                # assemble global system of ua matrix without correction
+                for ci,cj in self._local_dof_pairs:
+                    self._sys_mats['ua'][idx[ci],idx[cj]]+=\
+                    diff_mats[('ua',mid)][ci,cj]
+                # correction matrix for upscattering acceleration
+                cor_mat_ua = np.zeros((4,4))
+                if correction:
+                    for i in xrange(len(corr_vecs[0])):
+                        corx_ua_qp,cory_ua_qp = 0,0
+                        for g in xrange(self._g_thr,self._n_grp):
+                            ksi = self._ksi_ua[g-self._g_thr]
+                            corx_qp,cory_qp = corr_vecs[g][i][0],corr_vecs[g][i][1]
+                            corx_ua_qp += ksi*corx_qp
+                            cory_ua_qp += ksi*cory_qp
+                        corx_ua[i],cory_ua[i] = corx_ua_qp,cory_ua_qp
+                        cor_mat_ua+=(corx_ua[i]*corx[i]+cory_ua[i]*cory[i])
+                for ci,cj in self._local_dof_pairs:
+                    self._sys_mats['ua'][idx[ci],idx[cj]]+=\
+                    diff_mats[('ua',mid)][ci,cj]+cor_mat_ua[ci,cj]
 
         # Transform system matrices to CSC format
         for g in xrange(self._n_grp):
-            self._sys_mats[g] = sps.csc_matrix(sys_mats[g])
+            self._sys_mats[g] = sps.csc_matrix(self._sys_mats[g])
         if self._is_ua:
-            self._sys_mats['ua'] = sps.csc_matrix(sys_mats['ua'])
+            self._sys_mats['ua'] = sps.csc_matrix(self._sys_mats['ua'])
 
     def assemble_fixed_linear_forms(self, sflxes_prev=None):
         '''@brief  function used to assemble linear form for fixed source or fission
@@ -104,7 +134,7 @@ class NDA(object):
         '''@brief A function used to assemble linear form for upscattering acceleration
         '''
         # assign fixed source to rhs
-        self._sys_rhses[g] = fixed_rhses[g]
+        self._sys_rhses[g],mass = fixed_rhses[g],self._elem.mass()
         for cell in mesh.cells:
             idx,mid = cell.global_idx(),cell.id()
             sigs = self._sigses[mid][g,:]
@@ -114,10 +144,22 @@ class NDA(object):
                 scat_src += sigs[gin] * np.dot(mass, sflx_vtx)
             self._sys_rhses[g][idx] += scat_src
 
-    def assemble_ua_linear_form(self):
+    def assemble_ua_linear_form(self, sflxes_old):
         '''@brief A function used to assemble linear form for upscattering acceleration
         '''
-        #TODO: fill in this function and put the rhs in _sys_rhses['ua']
+        assert len(sflxes_old)==self._n_grp, \
+        'old scalar fluxes should have the same number of groups as current scalar fluxes'
+        mass = self._elem.mass()
+        self._sys_rhses['ua'] *= 0.0
+        for cell in self._mesh.cells():
+            idx,mid,scat_src_ua = cell.global_idx(),cell.id(),np.zeros(4)
+            for g in xrange(self._g_thr,self._n_grp-1):
+                for gin in xrange(g+1,self._n_grp):
+                    sigs = self._sigses[mid][g,gin]
+                    if sigs>1.0e-14:
+                        dsflx_vtx = self._sflxes[gin][idx]-sflxes_old[g][idx]
+                        scat_src_ua += sigs*np.dot(mass,dsflx_vtx)
+            self._sys_rhses['ua'][idx] += scat_src_ua
 
     def solve_in_group(self,g):
         assert 0<=g<self._n_grp, 'Group index out of range'
