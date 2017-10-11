@@ -63,17 +63,6 @@ class _mat():
 
     # PUBLIC FUNCTIONS
 
-    def cell_correction_ua(self, cell_correction):
-        i = int(self.gconst['g_thermal'])
-        v_x = np.dot(cell_correction[0][i:], self.derived['ksi_ua'])
-        v_y = np.dot(cell_correction[1][i:], self.derived['ksi_ua'])
-
-        return np.array([v_x, v_y])
-
-    def bd_correction_ua(self, bd_correction):
-        return np.dot(bd_correction, self.derived['ksi_ua'])
-
-
     def get_props(self):
         # Returns an array of all the properties that the material has
         return [d.keys() for d in self.all_dict]
@@ -300,36 +289,8 @@ class mat_lib():
             raise RuntimeError("Cannot add file " + filename +
                   ", mat_id already exists in material library")
 
-    def cell_correction_ua(self, correction, mat_id=None):
-        data = self.__correction__(correction, c_type='cell')
-
-        if mat_id:
-            return data[mat_id]
-        else:
-            return data
-
-    def bd_correction_ua(self, correction, mat_id=None):
-        data = self.__correction__(correction, c_type='bd')
-
-        if mat_id:
-            return data[mat_id]
-        else:
-            return data
-
     def n_grps(self):
         return self._n_grps
-        
-    def __correction__(self, correction, c_type):
-
-        data = {}
-        for mat in self.mats:
-            if c_type == 'cell':
-                data.update({mat.get('id') :
-                             mat.cell_correction_ua(correction)})
-            else:
-                data.update({mat.get('id') :
-                             mat.bd_correction_ua(correction)})
-        return data
 
     def ids(self):
         """ Returns the id's of stored materials """
@@ -448,23 +409,6 @@ class mat_map():
             k = loc
 
         return self.mat_lib.get(prop=prop, mat_id=self.array[k])
-
-    def cell_correction_ua(self, correction, loc):
-        if isinstance(loc, tuple):
-            k = int(loc[0]/self.dx) + int(loc[1]/self.dy)*self.n
-        else:
-            k = loc
-        return self.mat_lib.cell_correction_ua(correction,
-                                               mat_id=self.array[k])
-
-    def bd_correction_ua(self, correction, loc):
-        if isinstance(loc, tuple):
-            k = int(loc[0]/self.dx) + int(loc[1]/self.dy)*self.n
-        else:
-            k = loc
-        return self.mat_lib.bd_correction_ua(correction,
-                                             mat_id=self.array[k])
-
 
     def __build_array__(self):
         # Builds the array
