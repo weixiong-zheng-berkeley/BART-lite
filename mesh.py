@@ -73,7 +73,6 @@ class Cell(object):
 
     try:
       self._length = float(mesh_params['cell_length'])
-      self._area   = np.power(self._length, 2)
     except ValueError:
       raise TypeError("cell_length parameter must be a number")
 
@@ -130,10 +129,7 @@ class Cell(object):
 
   
   # ATTRIBUTES  =======================================================
-    
-  def area(self):
-    return self._area
-  
+      
   def bounds(self, bound=None, value=None):
     if bound and bound in self._bounds:
       if value:
