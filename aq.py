@@ -16,14 +16,14 @@ class AQ(object):
         # number of directions
         self._n_dir = (sn_ord+2) * sn_ord / 2
         # dictionary for containing angular quandrature directions and weights
-        self._aq_data = {'omega':{},'wt':{},'dir_prods':{},'tensor':{},
+        self._aq_data = {'omega':{},'wt':{},'dir_prods':{},'wt_tensor':{},
                          'bd_angle':{},'bd_vec_n':{},'refl_dir':{},'n_dir':self._n_dir}
         # make aq data
         self._quad2d()
         # store the outward normal vectors on boundaries
-        self._aq_data['bd_vec_n'] =
-        {'xmin':np.array([-1.,0]),'xmax':np.array([1.,0]),
-         'ymin':np.array([0,-1.]),'ymax':np.array([0,1.])}
+        self._aq_data['bd_vec_n'] = {
+        'xmin':np.array([-1.,0]),'xmax':np.array([1.,0]),
+        'ymin':np.array([0,-1.]),'ymax':np.array([0,1.])}
         # get incident and reflective directions
         self._boundary_info()
 
@@ -78,7 +78,7 @@ class AQ(object):
                     # loop over all angles
                     for ind,r_omega in self._aq_data['omega'].items():
                         # collect index if the angle is equal to calculated refl angle
-                        if np.array_equal(r_dir,r_omega):
+                        if np.allclose(r_dir,r_omega,rtol=1.0e-10,atol=1.0e-10):
                             self._aq_data['refl_dir'][(bd,i)] = ind
                             break
 
