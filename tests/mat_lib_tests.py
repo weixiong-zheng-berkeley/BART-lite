@@ -49,6 +49,11 @@ class TestFunctionality:
                                              'test_mat'),
                         np.array([15.91549431, 23.87324146])))
 
+    def test_get_str_dict(self):
+        """ get_per_str should return correct values (no mat_id)"""
+        ok_(np.allclose(self.lib.get_per_str('sig_t')['test_mat'],
+                        np.array([15.91549431, 23.87324146])))
+
     def test_get_id(self):
         """ providing an id and a prop returns the array for that mat """
         ok_(np.array_equal(self.lib.get('sig_t', mat_id='test_mat'),

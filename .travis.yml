@@ -9,6 +9,11 @@ python:
 
 install:
  - pip install -r requirements.txt
+ - pip install codecov
 
 script:
- - nosetests
+ - coverage run --source=. --omit=./tests/* -m nose
+ - coverage report
+
+after_success:
+ - codecov
