@@ -14,7 +14,6 @@ class TestCells:
 
     def test_area(self):
         """ Cell should be the correct area """
-        eq_(self.cell.area(), 2.5**2, "area value")
         eq_(self.cell.length(), 2.5, "length value")
 
     def test_global_index(self):

@@ -51,8 +51,36 @@ class TestIntegration_Mesh_Materials:
         eq_(mesh.x_node(), 5, "x_node value")
         eq_(mesh.y_node(), 5, "y_node value")
         eq_(mesh.cell_length(), 2.5, "cell length value")
-        
 
+    def test_plotting(self):
+        mesh_cells = 4
+        domain_upper = 10
+        mesh = Mesh(mesh_cells, domain_upper, self.testmap)
+        mesh_params = {'x_cell': 4,
+                       'cell_length': 2.5}
+        x_ans   = [0, 2.5, 5.0, 7.5, 10.0,
+               0, 2.5, 5.0, 7.5, 10.0,
+               0, 2.5, 5.0, 7.5, 10.0,
+               0, 2.5, 5.0, 7.5, 10.0,
+               0, 2.5, 5.0, 7.5, 10.0]
+
+        y_ans   = [0, 0, 0, 0, 0,
+               2.5, 2.5, 2.5, 2.5, 2.5,
+               5.0, 5.0, 5.0, 5.0, 5.0,
+               7.5, 7.5, 7.5, 7.5, 7.5,
+               10.0, 10.0, 10.0, 10.0, 10.0]
+
+        ans = [0.5, 1.0, 1.0, 1.0, 0.5,
+               1.0, 2.0, 2.0, 2.0, 1.0,
+               1.0, 2.0, 2.0, 2.0, 1.0,
+               1.0, 2.0, 2.0, 2.0, 1.0,
+               0.5, 1.0, 1.0, 1.0, 0.5]
+        
+        x, y, z = mesh.test_plot(plot=False)
+        ok_(np.array_equal(x, x_ans), "x values")
+        ok_(np.array_equal(y, y_ans), "y values")
+        ok_(np.array_equal(ans, z), "z values")
+        
     @raises(AssertionError)
     def test_mesh_cells_is_int(self):
         mesh_cells = 4.5
