@@ -376,7 +376,7 @@ class mat_map():
 
         self.array = self.__build_array__()
 
-    def plot(self):
+    def plot(self): # pragma: no cover
         n = int(np.sqrt(len(self.array)))
         mat_set = list(set(self.array))
         layout = [self.array[x:x+n] 

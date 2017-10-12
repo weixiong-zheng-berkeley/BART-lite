@@ -1,3 +1,7 @@
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+
 import numpy as np
 
 class Mesh(object):
@@ -28,7 +32,50 @@ class Mesh(object):
     self._y_node = mesh_cells + 1
     self._n_node = self._x_node * self._y_node
     self._cell_length = self._mesh_params['cell_length']
+
+  def soln_plot(self, solution, plot = True): # pragma: no cover
+    # Plot a given solution
+    return self.__plot__(solution, plot)
     
+  def test_plot(self, plot = False):
+    # Plot a test solution of length n_cells
+    solution = np.zeros(self._n_node)
+    
+    for cell in self._cells:
+      for idx in cell.global_idx():
+        solution[idx] += 0.5
+        
+    return self.__plot__(solution, plot)
+
+  def __plot__(self, solution, plot):
+    xs = []
+    ys = []
+    zs = []
+    for i,s in enumerate(solution):
+      x, y = self.__idx_to_xy__(i)
+      xs.append(x)
+      ys.append(y)
+      zs.append(s)
+    if plot: # pragma: no cover
+      fig = plt.figure()
+      ax = fig.add_subplot(111, projection='3d')
+      X = np.reshape(xs, (self._x_node, self._x_node))
+      Y = np.reshape(ys, (self._x_node, self._x_node))
+      Z = np.reshape(zs, (self._x_node, self._x_node))
+      rstride = int(self._x_node/50) + 1
+      cstride = int(self._x_node/50) + 1
+      surf = ax.plot_surface(X,Y,Z, cmap=cm.coolwarm, rstride=rstride,
+                             cstride=cstride, linewidth=0, antialiased=False)
+      fig.colorbar(surf)
+      plt.show()
+      return fig
+    else:
+      return xs, ys, zs
+
+  def __idx_to_xy__(self, idx):
+    y = self._cell_length*int(idx/self._x_node)
+    x = self._cell_length*int(idx % self._y_node)
+    return (x,y)
 
   def cell_length(self):
     return self._cell_length
