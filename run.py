@@ -1,8 +1,12 @@
 from __future__ import division
 import matplotlib.pyplot as plt
-import build_cells
 import material
 import mesh
+
+# iterations
+from eigen_iterations import Eigen
+from nda import NDA
+from saaf import SAAF
 
 #Specify problem here:
 from input_kaist_mox_1 import problem
@@ -29,29 +33,20 @@ MAT_MAP = material.mat_map(lib = MAT_LIB, layout = problem['layout'],
 MESH = mesh.Mesh(problem['mesh_cells'], problem['domain_upper'], MAT_MAP)
 
 def run():
-    '''
-    u = fempoi2d.fempoi2d(CELL_LENGTH, DOMAIN_LENGTH, DATA)
-    x = mesh_gen(CELLS)[:, :, 0]
-    y = mesh_gen(CELLS)[:, :, 1]
-    cset1 = plt.contourf(x, y, u, 10)
-    plt.colorbar()
-    plt.contour(x, y, u, cset1.levels, hold='on', colors='k')
-    plt.axis('equal')
-    plt.show()
-    '''
     # do we do NDA
     do_nda = problem['do_nda']
     # Eigen class construction
     eigen_cls = Eigen()
     # construct HO solver
-    ho_cls = SAAF(mat_lib=MAT_LIB, msh_cls=MESH, prob_dict=problem)
+    ho_cls = SAAF(mat_cls=MAT_LIB, mesh_cls=MESH, prob_dict=problem)
     if not do_nda:
         # eigen solving
         eigen_cls.do_iterations(ho_cls=ho_cls, nda_cls=None)
     else:
         # construct NDA solver
-        nda_cls = NDA(mat_lib=MAT_LIB, msh_cls=MESH, prob_dict=problem)
+        nda_cls = NDA(mat_cls=MAT_LIB, mesh_cls=MESH, prob_dict=problem)
         # eigen solving
         eigen_cls.do_iterations(ho_cls=ho_cls, nda_cls=nda_cls)
     # TODO: output and plotting functionality
-#run()
+
+run()

@@ -7,8 +7,6 @@ class MG(object):
     def __init__(self):
         # iteration tol
         self._tol = 1e-5
-        # mg fluxes
-        self._sflxes_mg_prev
 
     def do_iterations(self, ho_cls, nda_cls=None):
         '''@brief Function to be called in fixed source problems
@@ -60,3 +58,4 @@ class MG(object):
                 equ_cls.update_ua()
             # calculate iteration errors in multigroup iterations
             e = max(equ_cls.calculate_sflx_diff(sflxes_mg_prev,g)
+                    for g in xrange(g_thr, n_grp))

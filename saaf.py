@@ -1,14 +1,13 @@
 import numpy as np
-from scipy import sparse as sps, sparse.linalg as sla
+from scipy import sparse as sps
+from scipy.sparse import linalg as sla
 from itertools import product as pd
-import np.linalg.norm as norm
+from numpy.linalg import norm
 from elem import Elem
 from aq import AQ
 
 class SAAF(object):
-    def __init__(self, MAT_LIB, msh_cls, prob_dict):
-        # problem dictionary
-        self._problem = prb_dct
+    def __init__(self, mat_cls, mesh_cls, prob_dict):
         # name of the Equation
         self._name = 'saaf'
         # mesh data
@@ -20,17 +19,17 @@ class SAAF(object):
         # preassembly-interpolation data
         self._elem = Elem(self._cell_length)
         # material data
-        self._n_grp = MAT_LIB.get('n_grps')
-        self._g_thr = MAT_LIB.get('g_thermal')
-        self._sigts = MAT_LIB.get('sig_t')
-        self._isigts = MAT_LIB.get('inv_sig_t')
-        self._fiss_xsecs = MAT_LIB.get_per_str('chi_nu_sig_f')
-        self._nu_sigfs = MAT_LIB.get('nu_sig_f')
-        self._sigses = MAT_LIB.get_per_str('sig_s')
-        self._dcoefs = MAT_LIB.get('diff_coef')
-        self._mids = MAT_LIB.ids()
+        self._n_grp = mat_cls.get('n_grps')
+        self._g_thr = mat_cls.get('g_thermal')
+        self._sigts = mat_cls.get('sig_t')
+        self._isigts = mat_cls.get('inv_sig_t')
+        self._fiss_xsecs = mat_cls.get_per_str('chi_nu_sig_f')
+        self._nu_sigfs = mat_cls.get('nu_sig_f')
+        self._sigses = mat_cls.get_per_str('sig_s')
+        self._dcoefs = mat_cls.get('diff_coef')
+        self._mids = mat_cls.ids()
         # derived material data
-        self._ksi_ua = MAT_LIB.get('ksi_ua')
+        self._ksi_ua = mat_cls.get('ksi_ua')
         # problem type: is problem eigenvalue problem
         # aq data in forms of dictionary
         self._aq = AQ(prob_dict['sn_order']).get_aq_data()
@@ -48,7 +47,7 @@ class SAAF(object):
         self._rhs_mats = dict()
         self._preassembly_rhs()
         # related to global matrices and vectors
-        self._n_dof = msh_cls.n_node()
+        self._n_dof = mesh_cls.n_node()
         self._sys_mats = {}
         # be very careful about the following
         self._sys_rhses = {k:np.ones(self._n_dof) for k in xrange(self._n_tot)}
@@ -120,15 +119,19 @@ class SAAF(object):
             # sys_mat: temp variable for system matrix for one component
             sys_mat = sps.lil_matrix((self._mesh.n_node(), self._mesh.n_node()))
             for cell in self._mesh.cells():
-                idx,mid = cell.global_idx(),cell.id()
+                # retrieving global indices and material id per cell
+                idx,mid = cell.global_idx(),cell.get('id')
+                # mapping local matrices to global
                 for ci,cj in self._local_dof_pairs:
                     sys_mat[idx[ci],idx[cj]] += lhs_mats[mid][ci][cj]
                 # boundary part
                 if cell.bounds():
+                    # loop over
                     for bd in cell.bounds().keys():
                         if self._aq['bd_angle'][(bd,d)]>0:
-                            #outgoing boundary
+                            #outgoing boundary assembly: retrieving omega*n and boundary mass matrices
                             odn,bd_mass = self._aq['bd_angle'][(bd,d)],self._elem.bdmt()[bd]
+                            # mapping local vertices to global
                             for ci,cj in self._local_dof_pairs:
                                 if bd_mass[ci][cj]>1.0e-14:
                                     sys_mat[idx[ci],idx[cj]] += odn*bd_mass[ci][cj]
@@ -151,11 +154,12 @@ class SAAF(object):
             # get group and direction indices
             g,d = self._comp_grp[cp],self._comp_dir[cp]
             for cell in self._mesh.cells():
-                idx,mid = cell.global_idx(),cell.id()
+                idx,mid = cell.global_idx(),cell.get('id')
                 fiss_src,fiss_xsec = np.zeros(4),self._fiss_xsecs[mid][g]
                 # get fission source contribution from ingroups
                 for gi in filter(lambda j: fiss_xsec[j]>1.0e-14, xrange(self._n_grp)):
-                    sflx_vtx = sflxes_prev[gi][idx] if not nda_cls else nda_cls.get_sflx_vtx(gi, idx)
+                    sflx_vtx = sflxes_prev[gi][idx] if not nda_cls else \
+                               nda_cls.get_sflx_vtx(gi, idx)
                     fiss_src += fiss_xsec[gi]*np.dot(self._rhs_mats[mid][(g,d)],sflx_vtx)
                 self._fixed_rhses[cp][idx] += fiss_src
 
@@ -177,7 +181,7 @@ class SAAF(object):
             # go through all cells
             for cell in self._mesh.cells():
                 # get global dof indices and material ids
-                idx,mid = cell.global_idx(),cell.id()
+                idx,mid = cell.global_idx(),cell.get('id')
                 # get scattering matrix for current cell
                 sigs = self._sigses[mid]
                 # calculate local scattering source
@@ -275,7 +279,7 @@ class SAAF(object):
         # It will suffice only for constant,RT1 and bilinear finite elements.
         global_fiss_src = 0
         for cell in self._mesh.cells():
-            idx,mid = cell.global_idx(),cell.id()
+            idx,mid = cell.global_idx(),cell.get('id')
             nusigf = self._nu_sigfs[mid]
             for g in filter(lambda x: nusigf[x]>1.0e-14, xrange(self._n_grp)):
                 sflx_vtx = sum(self._sflxes[g][idx])

@@ -1,5 +1,4 @@
 import numpy as np
-from build_cells import *
 class Elem(object):
     def __init__(self, cell_length):
         self._cell_length = cell_length

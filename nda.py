@@ -1,11 +1,12 @@
 import numpy as np
-from scipy import sparse as sps, sparse.linalg as sla
+from scipy import sparse as sps
+from scipy.sparse import linalg as sla
 from itertools import product as pd
-import np.linalg.norm as norm
-from elem import *
+from numpy.linalg import norm
+from elem import Elem
 
 class NDA(object):
-    def __init__(self, MAT_LIB, msh_cls, prob_dict):
+    def __init__(self, mat_cls, mesh_cls, prob_dict):
         # equation name
         self._name = 'nda'
         # mesh data
@@ -17,9 +18,9 @@ class NDA(object):
         # preassembly-interpolation data
         self._elem = Elem(self._cell_length)
         # material ids and group info
-        self._mids = MAT_LIB.get('ids')
-        self._n_grp = MAT_LIB.get('n_grps')
-        self._g_thr = MAT_LIB.get('g_thermal')
+        self._mids = mat_cls.get('ids')
+        self._n_grp = mat_cls.get('n_grps')
+        self._g_thr = mat_cls.get('g_thermal')
         # mesh
         self._mesh = msh_cls
         # problem type
@@ -35,14 +36,14 @@ class NDA(object):
         # total number of components: keep consistency with HO
         self._n_tot = self._n_grp
         # all material
-        self._dcoefs = MAT_LIB.get('diff_coef')
-        self._sigts = MAT_LIB.get('sig_t')
-        self._sigses = MAT_LIB.get('sig_s')
-        self._sigrs = MAT_LIB.get('sig_r')
-        self._fiss_xsecs = MAT_LIB.get('chi_nu_sig_f')
+        self._dcoefs = mat_cls.get('diff_coef')
+        self._sigts = mat_cls.get('sig_t')
+        self._sigses = mat_cls.get('sig_s')
+        self._sigrs = mat_cls.get('sig_r')
+        self._fiss_xsecs = mat_cls.get('chi_nu_sig_f')
         # derived material properties
-        self._sigrs_ua = MAT_LIB.get('sig_r_ua')
-        self._dcoefs_ua = MAT_LIB.get('diff_coef_ua')
+        self._sigrs_ua = mat_cls.get('sig_r_ua')
+        self._dcoefs_ua = mat_cls.get('diff_coef_ua')
         # fission source
         self._global_fiss_src = self._calculate_fiss_src()
         self._global_fiss_src_prev = self._global_fiss_src
@@ -141,7 +142,8 @@ class NDA(object):
             for cell in self._mesh.cells():
                 idx,mid,fiss_src = cell.global_idx(),cell.id(),np.zeros(4)
                 for gi in filter(lambda: scaled_fiss_xsec[mid][g,x]>1.0e-14,xrange(self._n_grp)):
-                    sflx_vtx = self._sflxes[g][idx]
+                    sflx_vtx = self._sflxes[g][idx] if not sflxes_prev else \
+                               sflxes_prev[g][idx]
                     fiss_src += scaled_fiss_xsec[mid][g,gi]*np.dot(mass,sflx_vtx)
                 self._fixed_rhses[g][idx] += fiss_src
 
